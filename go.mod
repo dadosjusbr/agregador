@@ -7,6 +7,7 @@ require (
 	github.com/dadosjusbr/storage v0.0.0-20210802143751-2d9ae01fd8db // indirect
 	github.com/gocarina/gocsv v0.0.0-20210516172204-ca9e8a8ddea8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/klauspost/compress v1.13.3 // indirect
 	github.com/ncw/swift v1.0.53 // indirect
