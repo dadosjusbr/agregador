@@ -52,16 +52,14 @@ func main() {
 	fmt.Println(packages)
 }
 func getBackupData(year int, agency string) ([]storage.Backup, error) {
-	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: "mppb"}}, 2020)
+	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching data")
+		return nil, fmt.Errorf("error fetching data: %v", err)
 	}
 	var packages []storage.Backup
-	for _, agencyMonthlyInfo := range agenciesMonthlyInfo["mppb"] {
-		if agencyMonthlyInfo.Summary.MemberActive.Wage.Total+agencyMonthlyInfo.Summary.MemberActive.Perks.Total+agencyMonthlyInfo.Summary.MemberActive.Others.Total > 0 {
-			if agencyMonthlyInfo.Package != nil {
-				packages = append(packages, storage.Backup{URL: agencyMonthlyInfo.Package.URL, Hash: agencyMonthlyInfo.Package.Hash})
-			}
+	for _, agencyMonthlyInfo := range agenciesMonthlyInfo[agency] {
+		if agencyMonthlyInfo.Package != nil {
+			packages = append(packages, storage.Backup{URL: agencyMonthlyInfo.Package.URL, Hash: agencyMonthlyInfo.Package.Hash})
 		}
 	}
 	return packages, nil
