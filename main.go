@@ -52,7 +52,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	downloadFilesFromPackageList(2020, packages)
+	filePaths, err := downloadFilesFromPackageList(2020, packages)
+	if err != nil {
+		log.Fatal(err)
+	}
+	extractFiles(filePaths)
 	fmt.Println("arquivos baixados")
 }
 func getBackupData(year int, agency string) ([]storage.Backup, error) {
@@ -69,11 +73,17 @@ func getBackupData(year int, agency string) ([]storage.Backup, error) {
 	return packages, nil
 }
 
-func downloadFilesFromPackageList(year int, list []storage.Backup) {
+func downloadFilesFromPackageList(year int, list []storage.Backup) ([]string, error) {
+	var paths []string
 	for index, el := range list {
 		filepath := fmt.Sprintf("downloads/%d-%d.zip", year, index+1)
-		download(filepath, el.URL)
+		err := download(filepath, el.URL)
+		if err != nil {
+			return nil, fmt.Errorf("error while downloading files")
 	}
+		paths = append(paths, filepath)
+	}
+	return paths, nil
 }
 
 func download(filepath string, url string) error {
