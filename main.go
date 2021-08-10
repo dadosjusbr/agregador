@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/dadosjusbr/storage"
 	"github.com/joho/godotenv"
@@ -9,12 +10,8 @@ import (
 )
 
 type config struct {
-	DBUrl  string `envconfig:"MONGODB_URI"`
-	DBName string `envconfig:"MONGODB_NAME"`
-
-	// StorageDB config
-	MongoURI    string `envconfig:"MONGODB_URI"`
-	MongoDBName string `envconfig:"MONGODB_NAME"`
+	MongoURI    string `envconfig:"MONGODB_URI" required:"true"`
+	MongoDBName string `envconfig:"MONGODB_NAME" required:"true"`
 	MongoMICol  string `envconfig:"MONGODB_MICOL" required:"true"`
 	MongoAgCol  string `envconfig:"MONGODB_AGCOL" required:"true"`
 }
@@ -42,15 +39,15 @@ func main() {
 	godotenv.Load()
 	err := envconfig.Process("remuneracao-magistrados", &conf)
 	if err != nil {
-		fmt.Println("an error ocorred")
+		log.Fatal(err)
 	}
 	client, err = newClient(conf)
 	if err != nil {
-		fmt.Println("an error ocorred")
+		log.Fatal(err)
 	}
 	packages, err := getBackupData(2021, "mppb")
 	if err != nil {
-		fmt.Println("an error ocorred")
+		log.Fatal(err)
 	}
 	fmt.Println(packages)
 }
@@ -62,7 +59,9 @@ func getBackupData(year int, agency string) ([]storage.Backup, error) {
 	var packages []storage.Backup
 	for _, agencyMonthlyInfo := range agenciesMonthlyInfo["mppb"] {
 		if agencyMonthlyInfo.Summary.MemberActive.Wage.Total+agencyMonthlyInfo.Summary.MemberActive.Perks.Total+agencyMonthlyInfo.Summary.MemberActive.Others.Total > 0 {
-			packages = append(packages, storage.Backup{URL: agencyMonthlyInfo.Package.URL, Hash: agencyMonthlyInfo.Package.Hash})
+			if agencyMonthlyInfo.Package != nil {
+				packages = append(packages, storage.Backup{URL: agencyMonthlyInfo.Package.URL, Hash: agencyMonthlyInfo.Package.Hash})
+			}
 		}
 	}
 	return packages, nil
