@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
 
 	"github.com/dadosjusbr/storage"
 	"github.com/joho/godotenv"
@@ -45,14 +48,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	packages, err := getBackupData(2021, "mppb")
+	packages, err := getBackupData(2020, "mppb")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(packages)
+	downloadFilesFromPackageList(2020, packages)
+	fmt.Println("arquivos baixados")
 }
 func getBackupData(year int, agency string) ([]storage.Backup, error) {
-	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
+	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfoSummary([]storage.Agency{{ID: agency}}, year)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching data: %v", err)
 	}
@@ -63,4 +67,26 @@ func getBackupData(year int, agency string) ([]storage.Backup, error) {
 		}
 	}
 	return packages, nil
+}
+
+func downloadFilesFromPackageList(year int, list []storage.Backup) {
+	for index, el := range list {
+		filepath := fmt.Sprintf("downloads/%d-%d.zip", year, index+1)
+		download(filepath, el.URL)
+	}
+}
+
+func download(filepath string, url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
