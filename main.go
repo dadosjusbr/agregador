@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -39,6 +40,9 @@ func newClient(c config) (*storage.Client, error) {
 }
 
 func main() {
+	var year int
+	flag.IntVar(&year, "year", 2018, "a year in which you want to collect monthly information")
+	flag.Parse()
 	godotenv.Load()
 	err := envconfig.Process("remuneracao-magistrados", &conf)
 	if err != nil {
@@ -48,11 +52,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	packages, err := getBackupData(2020, "mppb")
+	packages, err := getBackupData(year, "mppb")
 	if err != nil {
 		log.Fatal(err)
 	}
-	downloadFilesFromPackageList(2020, packages)
+	downloadFilesFromPackageList(year, packages)
 	fmt.Println("arquivos baixados")
 }
 func getBackupData(year int, agency string) ([]storage.Backup, error) {
