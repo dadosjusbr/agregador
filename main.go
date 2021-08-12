@@ -74,7 +74,7 @@ func main() {
 	fmt.Println("arquivos baixados")
 }
 func getBackupData(year int, agency string) ([]extractionData, error) {
-	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfoSummary([]storage.Agency{{ID: agency}}, year)
+	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching data: %v", err)
 	}
