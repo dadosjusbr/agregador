@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/dadosjusbr/storage"
 	"github.com/joho/godotenv"
@@ -87,31 +88,35 @@ func getBackupData(year int, agency string) ([]extractionData, error) {
 func downloadFilesFromPackageList(list []extractionData) ([]string, error) {
 	var paths []string
 	for _, el := range list {
-		len := len(el.URL) - 1
-		extName := fmt.Sprint(string([]rune(el.URL)[len-2]), string([]rune(el.URL)[len-1]), string([]rune(el.URL)[len]))
-		if extName == "zip" {
-			filepath := fmt.Sprintf("downloads/%d/%d/package.zip", el.Year, el.Month)
-			err := download(filepath, el.URL)
+		if filepath.Ext(el.URL) == ".zip" {
+			fp := fmt.Sprintf("downloads/%d/%d/package.zip", el.Year, el.Month)
+			err := download(fp, el.URL)
 			if err != nil {
 				return nil, fmt.Errorf("error while downloading files")
 			}
-			paths = append(paths, filepath)
+			paths = append(paths, fp)
 		}
 	}
 	return paths, nil
 }
 
 func download(filepath string, url string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
+	if err := os.MkdirAll(filepath, os.ModePerm); err != nil {
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		out, err := os.Create(filepath)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			return err
+		}
 	}
-	defer resp.Body.Close()
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, resp.Body)
-	return err
+	return nil
 }
