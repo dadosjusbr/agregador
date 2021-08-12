@@ -129,39 +129,46 @@ func download(fp string, url string) error {
 func extractFiles(filePaths []string) ([]string, error) {
 	var filenames []string
 	for _, filename := range filePaths {
+		// open zip reader to extract files
 		r, err := zip.OpenReader(filename)
 		if err != nil {
 			return nil, fmt.Errorf("error while extracting zip files")
 		}
-		defer r.Close()
 		for _, f := range r.File {
-			fpath := filepath.Join(fmt.Sprint(filepath.Dir(filename), "/data/"), f.Name)
-			if !strings.HasPrefix(fpath, filepath.Clean(fmt.Sprint(filepath.Dir(filename), "/data/"))+string(os.PathSeparator)) {
-				return filenames, fmt.Errorf("%s: illegal file path", fpath)
-			}
-			filenames = append(filenames, fpath)
-			if f.FileInfo().IsDir() {
-				os.MkdirAll(fpath, os.ModePerm)
-				continue
-			}
-			if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-				return filenames, err
-			}
-			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return filenames, err
-			}
-			rc, err := f.Open()
-			if err != nil {
-				return filenames, err
-			}
-			_, err = io.Copy(outFile, rc)
-			outFile.Close()
-			rc.Close()
-			if err != nil {
-				return filenames, err
+			// search for the file data.csv inside the zip files
+			if f.Name == "data.csv" {
+				fpath := filepath.Join(fmt.Sprint(filepath.Dir(filename)), f.Name)
+				if !strings.HasPrefix(fpath, filepath.Clean(fmt.Sprint(filepath.Dir(filename)))+string(os.PathSeparator)) {
+					return filenames, fmt.Errorf("%s: illegal file path", fpath)
+				}
+				filenames = append(filenames, fpath)
+				if f.FileInfo().IsDir() {
+					os.MkdirAll(fpath, os.ModePerm)
+					continue
+				}
+				if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+					return filenames, err
+				}
+				out, err := os.Create(fpath)
+				if err != nil {
+					return nil, err
+				}
+				rc, err := f.Open()
+				if err != nil {
+					return filenames, err
+				}
+				_, err = io.Copy(out, rc)
+				if err != nil {
+					return nil, err
+				}
+				if err != nil {
+					return filenames, err
+				}
+				out.Close()
+				break
 			}
 		}
+		r.Close()
 	}
 	return filenames, nil
 }
