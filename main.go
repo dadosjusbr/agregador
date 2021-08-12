@@ -200,7 +200,7 @@ func mergeMIData(year int, filePaths []string) error {
 		}
 		csvFile.Close()
 	}
-	finalCsvFile, err := os.Create("downloads/test.csv")
+	finalCsvFile, err := os.Create(fmt.Sprint("downloads/", year, "/general-mi-data.csv"))
 	if err != nil {
 		log.Fatalf("failed creating file: %s", err)
 	}
