@@ -176,7 +176,7 @@ func unzip(zipPath, csvPath string) error {
 }
 func mergeMIData(filePaths []string, joinPath string) error {
 	var finalCsv [][]string
-	for _, f := range filePaths {
+	for i, f := range filePaths {
 		csvLines, err := func() ([][]string, error) {
 			csvFile, err := os.Open(f)
 			if err != nil {
@@ -188,7 +188,7 @@ func mergeMIData(filePaths []string, joinPath string) error {
 		if err != nil {
 			return fmt.Errorf("error while reading csv file: %q", err)
 		}
-		for i, line := range csvLines {
+		for _, line := range csvLines {
 			if i != 0 {
 				if line[0] != "aid" {
 					finalCsv = append(finalCsv, line)
