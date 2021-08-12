@@ -71,12 +71,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println("arquivos baixados")
 	extractedFilePaths, err := extractFiles(filePaths)
 	if err != nil {
 		log.Fatal(err)
 	}
-	mergeMIData(extractedFilePaths)
-	fmt.Println("arquivos baixados")
+	fmt.Println("arquivos extraidos")
+	mergeMIData(year, extractedFilePaths)
 }
 func getBackupData(year int, agency string) ([]extractionData, error) {
 	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfoSummary([]storage.Agency{{ID: agency}}, year)
@@ -177,7 +178,8 @@ func extractFiles(filePaths []string) ([]string, error) {
 	}
 	return filenames, nil
 }
-func mergeMIData(filePaths []string) error {
+func mergeMIData(year int, filePaths []string) error {
+	var finalCsv [][]string
 	for _, f := range filePaths {
 		csvFile, err := os.Open(f)
 		if err != nil {
@@ -187,9 +189,26 @@ func mergeMIData(filePaths []string) error {
 		if err != nil {
 			return fmt.Errorf("error while reading csv data")
 		}
-		for _, line := range csvLines {
-			fmt.Println(line)
+		for i, line := range csvLines {
+			if i != 0 {
+				if line[0] != "aid" {
+					finalCsv = append(finalCsv, line)
+				}
+			} else {
+				finalCsv = append(finalCsv, line)
+			}
 		}
+		csvFile.Close()
 	}
+	finalCsvFile, err := os.Create("downloads/test.csv")
+	if err != nil {
+		log.Fatalf("failed creating file: %s", err)
+	}
+	csvwriter := csv.NewWriter(finalCsvFile)
+	for _, empRow := range finalCsv {
+		_ = csvwriter.Write(empRow)
+	}
+	csvwriter.Flush()
+	finalCsvFile.Close()
 	return nil
 }
