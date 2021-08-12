@@ -3,13 +3,13 @@ module github.com/dadosjusbr/agregador
 go 1.16
 
 require (
-	github.com/dadosjusbr/coletores v0.0.0-20210810143013-f4b7fb3c6814 // indirect
-	github.com/dadosjusbr/storage v0.0.0-20210810171807-2e791851bc8e // indirect
+	github.com/dadosjusbr/coletores v0.0.0-20210811131359-6655e0571160 // indirect
+	github.com/dadosjusbr/storage v0.0.0-20210812190548-95e3d825fdbd
 	github.com/gocarina/gocsv v0.0.0-20210516172204-ca9e8a8ddea8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/joho/godotenv v1.3.0 // indirect
-	github.com/kelseyhightower/envconfig v1.4.0 // indirect
-	github.com/klauspost/compress v1.13.3 // indirect
+	github.com/joho/godotenv v1.3.0
+	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/klauspost/compress v1.13.4 // indirect
 	github.com/ncw/swift v1.0.53 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.mongodb.org/mongo-driver v1.7.1 // indirect
