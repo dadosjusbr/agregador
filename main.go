@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"io"
@@ -63,7 +64,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	extractFiles(filePaths)
+	extractedFilePaths, err := extractFiles(filePaths)
+	if err != nil {
+		log.Fatal(err)
+	}
+	mergeMIData(extractedFilePaths)
 	fmt.Println("arquivos baixados")
 }
 func getBackupData(year int, agency string) ([]storage.Backup, error) {
@@ -146,4 +151,20 @@ func extractFiles(filePaths []string) ([]string, error) {
 		}
 	}
 	return filenames, nil
+}
+func mergeMIData(filePaths []string) error {
+	for _, f := range filePaths {
+		csvFile, err := os.Open(f)
+		if err != nil {
+			return fmt.Errorf("error while reading csv file")
+		}
+		csvLines, err := csv.NewReader(csvFile).ReadAll()
+		if err != nil {
+			return fmt.Errorf("error while reading csv data")
+		}
+		for _, line := range csvLines {
+			fmt.Println(line)
+		}
+	}
+	return nil
 }
