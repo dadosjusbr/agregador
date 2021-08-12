@@ -100,23 +100,22 @@ func downloadFilesFromPackageList(list []extractionData) ([]string, error) {
 	return paths, nil
 }
 
-func download(filepath string, url string) error {
-	if err := os.MkdirAll(filepath, os.ModePerm); err != nil {
-		resp, err := http.Get(url)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
+func download(fp string, url string) error {
+	os.MkdirAll(filepath.Dir(fp), 0700)
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-		out, err := os.Create(filepath)
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-		_, err = io.Copy(out, resp.Body)
-		if err != nil {
-			return err
-		}
+	out, err := os.Create(fp)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
 	}
 	return nil
 }
