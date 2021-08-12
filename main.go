@@ -24,6 +24,13 @@ type config struct {
 	MongoAgCol  string `envconfig:"MONGODB_AGCOL" required:"true"`
 }
 
+type extractionData struct {
+	Year  int
+	Month int
+	URL   string
+	Hash  string
+}
+
 var conf config
 var client *storage.Client
 
@@ -60,7 +67,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	filePaths, err := downloadFilesFromPackageList(year, packages)
+	filePaths, err := downloadFilesFromPackageList(packages)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,84 +78,102 @@ func main() {
 	mergeMIData(extractedFilePaths)
 	fmt.Println("arquivos baixados")
 }
-func getBackupData(year int, agency string) ([]storage.Backup, error) {
+func getBackupData(year int, agency string) ([]extractionData, error) {
 	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfoSummary([]storage.Agency{{ID: agency}}, year)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching data: %v", err)
 	}
-	var packages []storage.Backup
+	var packages []extractionData
 	for _, agencyMonthlyInfo := range agenciesMonthlyInfo[agency] {
 		if agencyMonthlyInfo.Package != nil {
-			packages = append(packages, storage.Backup{URL: agencyMonthlyInfo.Package.URL, Hash: agencyMonthlyInfo.Package.Hash})
+			packages = append(packages,
+				extractionData{Year: agencyMonthlyInfo.Year,
+					Month: agencyMonthlyInfo.Month,
+					URL:   agencyMonthlyInfo.Package.URL,
+					Hash:  agencyMonthlyInfo.Package.Hash})
 		}
 	}
 	return packages, nil
 }
 
-func downloadFilesFromPackageList(year int, list []storage.Backup) ([]string, error) {
+func downloadFilesFromPackageList(list []extractionData) ([]string, error) {
 	var paths []string
-	for index, el := range list {
-		filepath := fmt.Sprintf("downloads/%d-%d.zip", year, index+1)
-		err := download(filepath, el.URL)
-		if err != nil {
-			return nil, fmt.Errorf("error while downloading files")
+	for _, el := range list {
+		if filepath.Ext(el.URL) == ".zip" {
+			fp := fmt.Sprintf("downloads/%d/%d/package.zip", el.Year, el.Month)
+			err := download(fp, el.URL)
+			if err != nil {
+				return nil, fmt.Errorf("error while downloading files")
+			}
+			paths = append(paths, fp)
 		}
-		paths = append(paths, filepath)
 	}
 	return paths, nil
 }
 
-func download(filepath string, url string) error {
+func download(fp string, url string) error {
+	os.MkdirAll(filepath.Dir(fp), 0700)
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	out, err := os.Create(filepath)
+
+	out, err := os.Create(fp)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 	_, err = io.Copy(out, resp.Body)
-	return err
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func extractFiles(filePaths []string) ([]string, error) {
 	var filenames []string
-	for i, filename := range filePaths {
+	for _, filename := range filePaths {
+		// open zip reader to extract files
 		r, err := zip.OpenReader(filename)
 		if err != nil {
 			return nil, fmt.Errorf("error while extracting zip files")
 		}
-		defer r.Close()
 		for _, f := range r.File {
-			fpath := filepath.Join(fmt.Sprintf("downloads/data/%d", i+1), f.Name)
-			if !strings.HasPrefix(fpath, filepath.Clean(fmt.Sprintf("downloads/data/%d", i+1))+string(os.PathSeparator)) {
-				return filenames, fmt.Errorf("%s: illegal file path", fpath)
-			}
-			filenames = append(filenames, fpath)
-			if f.FileInfo().IsDir() {
-				os.MkdirAll(fpath, os.ModePerm)
-				continue
-			}
-			if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-				return filenames, err
-			}
-			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return filenames, err
-			}
-			rc, err := f.Open()
-			if err != nil {
-				return filenames, err
-			}
-			_, err = io.Copy(outFile, rc)
-			outFile.Close()
-			rc.Close()
-			if err != nil {
-				return filenames, err
+			// search for the file data.csv inside the zip files
+			if f.Name == "data.csv" {
+				fpath := filepath.Join(fmt.Sprint(filepath.Dir(filename)), f.Name)
+				if !strings.HasPrefix(fpath, filepath.Clean(fmt.Sprint(filepath.Dir(filename)))+string(os.PathSeparator)) {
+					return filenames, fmt.Errorf("%s: illegal file path", fpath)
+				}
+				filenames = append(filenames, fpath)
+				if f.FileInfo().IsDir() {
+					os.MkdirAll(fpath, os.ModePerm)
+					continue
+				}
+				if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+					return filenames, err
+				}
+				out, err := os.Create(fpath)
+				if err != nil {
+					return nil, err
+				}
+				rc, err := f.Open()
+				if err != nil {
+					return filenames, err
+				}
+				_, err = io.Copy(out, rc)
+				if err != nil {
+					return nil, err
+				}
+				if err != nil {
+					return filenames, err
+				}
+				out.Close()
+				break
 			}
 		}
+		r.Close()
 	}
 	return filenames, nil
 }
