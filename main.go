@@ -20,6 +20,13 @@ type config struct {
 	MongoAgCol  string `envconfig:"MONGODB_AGCOL" required:"true"`
 }
 
+type extractionData struct {
+	Year  int
+	Month int
+	URL   string
+	Hash  string
+}
+
 var conf config
 var client *storage.Client
 
@@ -56,32 +63,42 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	downloadFilesFromPackageList(year, packages)
+	downloadFilesFromPackageList(packages)
 	fmt.Println("arquivos baixados")
 }
-func getBackupData(year int, agency string) ([]storage.Backup, error) {
+func getBackupData(year int, agency string) ([]extractionData, error) {
 	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfoSummary([]storage.Agency{{ID: agency}}, year)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching data: %v", err)
 	}
-	var packages []storage.Backup
+	var packages []extractionData
 	for _, agencyMonthlyInfo := range agenciesMonthlyInfo[agency] {
 		if agencyMonthlyInfo.Package != nil {
-			packages = append(packages, storage.Backup{URL: agencyMonthlyInfo.Package.URL, Hash: agencyMonthlyInfo.Package.Hash})
+			packages = append(packages,
+				extractionData{Year: agencyMonthlyInfo.Year,
+					Month: agencyMonthlyInfo.Month,
+					URL:   agencyMonthlyInfo.Package.URL,
+					Hash:  agencyMonthlyInfo.Package.Hash})
 		}
 	}
 	return packages, nil
 }
 
-func downloadFilesFromPackageList(year int, list []storage.Backup) {
-	for index, el := range list {
+func downloadFilesFromPackageList(list []extractionData) ([]string, error) {
+	var paths []string
+	for _, el := range list {
 		len := len(el.URL) - 1
 		extName := fmt.Sprint(string([]rune(el.URL)[len-2]), string([]rune(el.URL)[len-1]), string([]rune(el.URL)[len]))
 		if extName == "zip" {
-			filepath := fmt.Sprintf("downloads/%d-%d.zip", year, index+1)
-			download(filepath, el.URL)
+			filepath := fmt.Sprintf("downloads/%d/%d/package.zip", el.Year, el.Month)
+			err := download(filepath, el.URL)
+			if err != nil {
+				return nil, fmt.Errorf("error while downloading files")
+			}
+			paths = append(paths, filepath)
 		}
 	}
+	return paths, nil
 }
 
 func download(filepath string, url string) error {
