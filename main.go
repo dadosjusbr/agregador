@@ -75,8 +75,12 @@ func getBackupData(year int, agency string) ([]storage.Backup, error) {
 
 func downloadFilesFromPackageList(year int, list []storage.Backup) {
 	for index, el := range list {
-		filepath := fmt.Sprintf("downloads/%d-%d.zip", year, index+1)
-		download(filepath, el.URL)
+		len := len(el.URL) - 1
+		extName := fmt.Sprint(string([]rune(el.URL)[len-2]), string([]rune(el.URL)[len-1]), string([]rune(el.URL)[len]))
+		if extName == "zip" {
+			filepath := fmt.Sprintf("downloads/%d-%d.zip", year, index+1)
+			download(filepath, el.URL)
+		}
 	}
 }
 
