@@ -53,9 +53,7 @@ func newClient(c config) (*storage.Client, error) {
 }
 
 func main() {
-	const (
-		packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
-	)
+	const packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
 	var year int
 	var agency string
 	var outDir string
