@@ -3,15 +3,18 @@ package main
 import (
 	"archive/zip"
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/dadosjusbr/storage"
+	"github.com/frictionlessdata/datapackage-go/datapackage"
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -50,6 +53,7 @@ func newClient(c config) (*storage.Client, error) {
 }
 
 func main() {
+	const packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
 	var year int
 	var agency string
 	var outDir string
@@ -100,6 +104,9 @@ func main() {
 	}
 	joinPath := filepath.Join(outDir, "data.csv")
 	if err := mergeMIData(csvList, joinPath); err != nil {
+		log.Fatal(err)
+	}
+	if err := createDataPackage(agency, year, packageFileName, outDir); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("arquivo final criado:", joinPath)
@@ -174,6 +181,28 @@ func unzip(zipPath, csvPath string) error {
 	}
 	return nil
 }
+func createDataPackage(agency string, year int, packageFileName string, outDir string) error {
+	c, err := ioutil.ReadFile(packageFileName)
+	if err != nil {
+		return fmt.Errorf("error reading datapackge_descriptor.json:%q", err)
+	}
+	var desc map[string]interface{}
+	if err := json.Unmarshal(c, &desc); err != nil {
+		return fmt.Errorf("error unmarshaling datapackage descriptor:%q", err)
+	}
+	desc["aid"] = agency
+	desc["year"] = year
+	pkg, err := datapackage.New(desc, outDir)
+	if err != nil {
+		return fmt.Errorf("error create datapackage:%q", err)
+	}
+	zipName := filepath.Join(outDir, fmt.Sprintf("%s-%d.zip", agency, year))
+	if err := pkg.Zip(zipName); err != nil {
+		return fmt.Errorf("error zipping datapackage (%s:%q)", zipName, err)
+	}
+	return nil
+}
+
 func mergeMIData(filePaths []string, joinPath string) error {
 	var finalCsv [][]string
 	for i, f := range filePaths {

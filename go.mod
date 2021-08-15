@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/dadosjusbr/coletores v0.0.0-20210811131359-6655e0571160 // indirect
 	github.com/dadosjusbr/storage v0.0.0-20210812190548-95e3d825fdbd
+	github.com/frictionlessdata/datapackage-go v0.0.0-20210810130302-98883c9586e9 // indirect
 	github.com/gocarina/gocsv v0.0.0-20210516172204-ca9e8a8ddea8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/joho/godotenv v1.3.0
