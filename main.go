@@ -20,10 +20,15 @@ import (
 )
 
 type config struct {
-	MongoURI    string `envconfig:"MONGODB_URI" required:"true"`
-	MongoDBName string `envconfig:"MONGODB_NAME" required:"true"`
-	MongoMICol  string `envconfig:"MONGODB_MICOL" required:"true"`
-	MongoAgCol  string `envconfig:"MONGODB_AGCOL" required:"true"`
+	MongoURI       string `envconfig:"MONGODB_URI" required:"true"`
+	MongoDBName    string `envconfig:"MONGODB_NAME" required:"true"`
+	MongoMICol     string `envconfig:"MONGODB_MICOL" required:"true"`
+	MongoAgCol     string `envconfig:"MONGODB_AGCOL" required:"true"`
+	SwiftUsername  string `envconfig:"SWIFT_USERNAME" required:"true"`
+	SwiftAPIKey    string `envconfig:"SWIFT_APIKEY" required:"true"`
+	SwiftAuthURL   string `envconfig:"SWIFT_AUTHURL" required:"true"`
+	SwiftDomain    string `envconfig:"SWIFT_DOMAIN" required:"true"`
+	SwiftContainer string `envconfig:"SWIFT_CONTAINER" required:"true"`
 }
 
 type extractionData struct {
@@ -45,7 +50,8 @@ func newClient(c config) (*storage.Client, error) {
 		return nil, fmt.Errorf("error creating DB client: %q", err)
 	}
 	db.Collection(c.MongoMICol)
-	client, err := storage.NewClient(db, &storage.CloudClient{})
+	bc := storage.NewCloudClient(conf.SwiftUsername, conf.SwiftAPIKey, conf.SwiftAuthURL, conf.SwiftDomain, conf.SwiftContainer)
+	client, err := storage.NewClient(db, bc)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage.client: %q", err)
 	}
@@ -108,10 +114,16 @@ func main() {
 	if err := mergeMIData(csvList, joinPath); err != nil {
 		log.Fatal(err)
 	}
-	if err := createDataPackage(agency, year, packageFileName, outDir); err != nil {
+	dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
+	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("arquivo final criado:", joinPath)
+	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, agency)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("arquivo de backup criado", packBackup)
 }
 func getBackupData(year int, agency string) ([]extractionData, error) {
 	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
@@ -183,26 +195,26 @@ func unzip(zipPath, csvPath string) error {
 	}
 	return nil
 }
-func createDataPackage(agency string, year int, packageFileName string, outDir string) error {
+func createDataPackage(agency string, year int, packageFileName string, outDir string) (string, error) {
 	c, err := ioutil.ReadFile(packageFileName)
 	if err != nil {
-		return fmt.Errorf("error reading datapackge_descriptor.json:%q", err)
+		return "", fmt.Errorf("error reading datapackge_descriptor.json:%q", err)
 	}
 	var desc map[string]interface{}
 	if err := json.Unmarshal(c, &desc); err != nil {
-		return fmt.Errorf("error unmarshaling datapackage descriptor:%q", err)
+		return "", fmt.Errorf("error unmarshaling datapackage descriptor:%q", err)
 	}
 	desc["aid"] = agency
 	desc["year"] = year
 	pkg, err := datapackage.New(desc, outDir)
 	if err != nil {
-		return fmt.Errorf("error create datapackage:%q", err)
+		return "", fmt.Errorf("error create datapackage:%q", err)
 	}
 	zipName := filepath.Join(outDir, fmt.Sprintf("%s-%d.zip", agency, year))
 	if err := pkg.Zip(zipName); err != nil {
-		return fmt.Errorf("error zipping datapackage (%s:%q)", zipName, err)
+		return "", fmt.Errorf("error zipping datapackage (%s:%q)", zipName, err)
 	}
-	return nil
+	return zipName, nil
 }
 
 func mergeMIData(filePaths []string, joinPath string) error {
