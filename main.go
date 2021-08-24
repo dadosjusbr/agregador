@@ -24,6 +24,7 @@ type config struct {
 	MongoDBName    string `envconfig:"MONGODB_NAME" required:"true"`
 	MongoMICol     string `envconfig:"MONGODB_MICOL" required:"true"`
 	MongoAgCol     string `envconfig:"MONGODB_AGCOL" required:"true"`
+	MongoPkgCol    string `envconfig:"MONGODB_PKGCOL" required:"true"`
 	SwiftUsername  string `envconfig:"SWIFT_USERNAME" required:"true"`
 	SwiftAPIKey    string `envconfig:"SWIFT_APIKEY" required:"true"`
 	SwiftAuthURL   string `envconfig:"SWIFT_AUTHURL" required:"true"`
@@ -45,7 +46,7 @@ func newClient(c config) (*storage.Client, error) {
 	if c.MongoMICol == "" || c.MongoAgCol == "" {
 		return nil, fmt.Errorf("error creating storage client: db collections must not be empty. MI:\"%s\", AG:\"%s\"", c.MongoMICol, c.MongoAgCol)
 	}
-	db, err := storage.NewDBClient(c.MongoURI, c.MongoDBName, c.MongoMICol, c.MongoAgCol)
+	db, err := storage.NewDBClient(c.MongoURI, c.MongoDBName, c.MongoMICol, c.MongoAgCol, c.MongoPkgCol)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DB client: %q", err)
 	}
@@ -118,11 +119,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("arquivo final criado:", joinPath)
+	fmt.Println("arquivo final criado:", dataPackageFilename)
 	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, agency)
 	if err != nil {
 		log.Fatal(err)
 	}
+	client.StorePackage(storage.Package{
+		AgencyID: &agency,
+		Year:     &year,
+		Month:    nil,
+		Group:    nil,
+		Package:  *packBackup})
 	fmt.Println("arquivo de backup criado", packBackup)
 }
 func getBackupData(year int, agency string) ([]extractionData, error) {
