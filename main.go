@@ -316,6 +316,10 @@ func mergeMIData(filePaths []string, joinPath string) error {
 				finalCsv = append(finalCsv, line)
 			}
 		}
+		// deletes the csv file after read
+		if err := os.Remove(f); err != nil {
+			return err
+		}
 	}
 	finalCsvFile, err := os.Create(joinPath)
 	if err != nil {
