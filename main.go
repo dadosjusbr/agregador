@@ -72,12 +72,14 @@ func main() {
 	var grop_by string
 	var outDir string
 	var year int
+	var agency string
 	flag.StringVar(&grop_by, "group_by", "", "an grop_by in which you want to collect monthly information")
 	flag.StringVar(&outDir, "outDir", "out", "the output directory")
+	flag.StringVar(&agency, "agency", "", "the given agency to agreggate monthly information")
 	flag.IntVar(&year, "year", 2018, "the agreggation given year")
 	flag.Parse()
 	if grop_by == "" {
-		log.Fatalf("missing flag agency")
+		log.Fatalf("missing flag group_by")
 	}
 	client, err = newClient(conf)
 	if err != nil {
@@ -89,6 +91,13 @@ func main() {
 	switch grop_by {
 	case "agency/year/all":
 		if err := agregateDataByAgencyYearFromAllAgencies(year, outDir); err != nil {
+			log.Fatalf("error while agreggating by agency/year: %q", err)
+		}
+	case "agency/year":
+		if agency != "" {
+			log.Fatalf("missing flag agency")
+		}
+		if err := agregateDataByAgencyYear(year, outDir, agency); err != nil {
 			log.Fatalf("error while agreggating by agency/year: %q", err)
 		}
 	case "group/year":
@@ -119,6 +128,24 @@ func agregateDataByAgencyYearFromAllAgencies(year int, outDir string) error {
 		}
 		savePackage(dataPackageFilename, year, &agency)
 	}
+	return nil
+}
+func agregateDataByAgencyYear(year int, outDir string, agency string) error {
+	packages, err := getBackupData(year, agency)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var csvList []string
+	csvList = getCsvList(packages, year, agency, outDir, csvList)
+	joinPath := filepath.Join(outDir, "data.csv")
+	if err := mergeMIData(csvList, joinPath); err != nil {
+		log.Fatal(err)
+	}
+	dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	savePackage(dataPackageFilename, year, &agency)
 	return nil
 }
 
