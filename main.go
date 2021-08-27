@@ -114,79 +114,92 @@ func agregateDataByAgencyYearFromAllAgencies(year int, outDir string) error {
 		agency := ag.ID
 		packages, err := getBackupData(year, agency)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		var csvList []string
-		csvList = getCsvList(packages, year, agency, outDir, csvList)
+		csvList, err = getCsvList(packages, year, agency, outDir, csvList)
+		if err != nil {
+			return err
+		}
 		joinPath := filepath.Join(outDir, "data.csv")
 		if err := mergeMIData(csvList, joinPath); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-		savePackage(dataPackageFilename, year, &agency)
+		if err := savePackage(dataPackageFilename, year, &agency); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 func agregateDataByAgencyYear(year int, outDir string, agency string) error {
 	packages, err := getBackupData(year, agency)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	var csvList []string
-	csvList = getCsvList(packages, year, agency, outDir, csvList)
+	csvList, err = getCsvList(packages, year, agency, outDir, csvList)
+	if err != nil {
+		return err
+	}
 	joinPath := filepath.Join(outDir, "data.csv")
 	if err := mergeMIData(csvList, joinPath); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	savePackage(dataPackageFilename, year, &agency)
+	if err := savePackage(dataPackageFilename, year, &agency); err != nil {
+		return err
+	}
 	return nil
 }
 
-func savePackage(dataPackageFilename string, year int, agency *string) {
+func savePackage(dataPackageFilename string, year int, agency *string) error {
 	fmt.Println("arquivo final criado:", dataPackageFilename)
 	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, *agency)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	client.StorePackage(storage.Package{
+	if err := client.StorePackage(storage.Package{
 		AgencyID: agency,
 		Year:     &year,
 		Month:    nil,
 		Group:    nil,
-		Package:  *packBackup})
+		Package:  *packBackup}); err != nil {
+		return err
+	}
 	fmt.Println("arquivo de backup criado", packBackup)
+	return nil
 }
 
-func getCsvList(packages []extractionData, year int, agency string, outDir string, csvList []string) []string {
+func getCsvList(packages []extractionData, year int, agency string, outDir string, csvList []string) ([]string, error) {
 	for _, p := range packages {
 		if filepath.Ext(p.URL) == ".zip" {
 			zFName := fmt.Sprintf("%d_%d_%s.zip", year, p.Month, agency)
 			zPath := filepath.Join(outDir, zFName)
 			if err := download(zPath, p.URL); err != nil {
-				log.Fatal(err)
+				return nil, err
 			}
 			fmt.Println("arquivo baixado:", zPath)
 			csvFName := fmt.Sprintf("%d_%d_%s.csv", year, p.Month, agency)
 			csvPath := filepath.Join(outDir, csvFName)
 			if err := unzip(zPath, csvPath); err != nil {
-				log.Fatal(err)
+				return nil, err
 			}
 			fmt.Println("arquivo descompactado:", csvPath)
 			csvList = append(csvList, csvPath)
 			if err := os.Remove(zPath); err != nil {
-				log.Fatal(err)
+				return nil, err
 			}
 			fmt.Println("arquivo zip apagado:", zPath)
 		}
 	}
-	return csvList
+	return csvList, nil
 }
 func getBackupData(year int, agency string) ([]extractionData, error) {
 	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
