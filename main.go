@@ -94,7 +94,7 @@ func main() {
 			log.Fatalf("error while agreggating by agency/year: %q", err)
 		}
 	case "agency/year":
-		if agency != "" {
+		if agency == "" {
 			log.Fatalf("missing flag agency")
 		}
 		if err := agregateDataByAgencyYear(year, outDir, agency); err != nil {
