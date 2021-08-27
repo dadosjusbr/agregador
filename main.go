@@ -59,37 +59,85 @@ func newClient(c config) (*storage.Client, error) {
 	return client, nil
 }
 
+const (
+	packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
+)
+
 func main() {
-	const (
-		packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
-	)
-	var year int
-	var agency string
-	var outDir string
-	flag.IntVar(&year, "year", 2018, "a year in which you want to collect monthly information")
-	flag.StringVar(&agency, "agency", "", "an agency in which you want to collect monthly information")
-	flag.StringVar(&outDir, "outDir", "out", "the output directory")
-	flag.Parse()
-	if agency == "" {
-		log.Fatalf("missing flag agency")
-	}
 	godotenv.Load()
 	err := envconfig.Process("remuneracao-magistrados", &conf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	client, err = newClient(conf)
-	if err != nil {
-		log.Fatal(err)
+	var grop_by string
+	var outDir string
+	var year int
+	flag.StringVar(&grop_by, "group_by", "", "an grop_by in which you want to collect monthly information")
+	flag.StringVar(&outDir, "outDir", "out", "the output directory")
+	flag.IntVar(&year, "year", 2018, "the agreggation given year")
+	flag.Parse()
+	if grop_by == "" {
+		log.Fatalf("missing flag agency")
 	}
-	packages, err := getBackupData(year, agency)
+	client, err = newClient(conf)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if err = os.MkdirAll(outDir, os.ModePerm); err != nil {
 		log.Fatalf("error while creating new dir(%s): %q", outDir, err)
 	}
-	var csvList []string
+	switch grop_by {
+	case "agency/year/all":
+		if err := agregateDataByAgencyYearFromAllAgencies(year, outDir); err != nil {
+			log.Fatalf("error while agreggating by agency/year: %q", err)
+		}
+	case "group/year":
+	}
+	fmt.Printf("dados agregados!")
+}
+
+func agregateDataByAgencyYearFromAllAgencies(year int, outDir string) error {
+	agencies, err := client.Db.GetAllAgencies()
+	if err != nil {
+		return err
+	}
+	for _, ag := range agencies {
+		agency := ag.ID
+		packages, err := getBackupData(year, agency)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var csvList []string
+		csvList = getCsvList(packages, year, agency, outDir, csvList)
+		joinPath := filepath.Join(outDir, "data.csv")
+		if err := mergeMIData(csvList, joinPath); err != nil {
+			log.Fatal(err)
+		}
+		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		savePackage(dataPackageFilename, year, &agency)
+	}
+	return nil
+}
+
+func savePackage(dataPackageFilename string, year int, agency *string) {
+	fmt.Println("arquivo final criado:", dataPackageFilename)
+	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, *agency)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client.StorePackage(storage.Package{
+		AgencyID: agency,
+		Year:     &year,
+		Month:    nil,
+		Group:    nil,
+		Package:  *packBackup})
+	fmt.Println("arquivo de backup criado", packBackup)
+}
+
+func getCsvList(packages []extractionData, year int, agency string, outDir string, csvList []string) []string {
 	for _, p := range packages {
 		if filepath.Ext(p.URL) == ".zip" {
 			zFName := fmt.Sprintf("%d_%d_%s.zip", year, p.Month, agency)
@@ -111,26 +159,7 @@ func main() {
 			fmt.Println("arquivo zip apagado:", zPath)
 		}
 	}
-	joinPath := filepath.Join(outDir, "data.csv")
-	if err := mergeMIData(csvList, joinPath); err != nil {
-		log.Fatal(err)
-	}
-	dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("arquivo final criado:", dataPackageFilename)
-	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, agency)
-	if err != nil {
-		log.Fatal(err)
-	}
-	client.StorePackage(storage.Package{
-		AgencyID: &agency,
-		Year:     &year,
-		Month:    nil,
-		Group:    nil,
-		Package:  *packBackup})
-	fmt.Println("arquivo de backup criado", packBackup)
+	return csvList
 }
 func getBackupData(year int, agency string) ([]extractionData, error) {
 	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
