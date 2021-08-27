@@ -65,8 +65,7 @@ const (
 
 func main() {
 	godotenv.Load()
-	err := envconfig.Process("remuneracao-magistrados", &conf)
-	if err != nil {
+	if err := envconfig.Process("remuneracao-magistrados", &conf); err != nil {
 		log.Fatal(err)
 	}
 	var grop_by string
@@ -83,24 +82,26 @@ func main() {
 	if grop_by == "" {
 		log.Fatalf("missing flag group_by")
 	}
-	client, err = newClient(conf)
+	c, err := newClient(conf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err = os.MkdirAll(outDir, os.ModePerm); err != nil {
+	client = c
+	if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
 		log.Fatalf("error while creating new dir(%s): %q", outDir, err)
 	}
 	switch grop_by {
 	case "agency/year/all":
-		if err := agregateDataByAgencyYearFromAllAgencies(year, outDir); err != nil {
-			log.Fatalf("error while agreggating by agency/year: %q", err)
-		}
+
 	case "agency/year":
 		if agency == "" {
-			log.Fatalf("missing flag agency")
-		}
-		if err := agregateDataByAgencyYear(year, outDir, agency); err != nil {
-			log.Fatalf("error while agreggating by agency/year: %q", err)
+			if err := agregateDataByAgencyYearFromAllAgencies(year, outDir); err != nil {
+				log.Fatalf("error while agreggating by agency/year: %q", err)
+			}
+		} else {
+			if err := agregateDataByAgencyYear(year, outDir, agency); err != nil {
+				log.Fatalf("error while agreggating by agency/year: %q", err)
+			}
 		}
 	case "group/year":
 		if group == "" {
