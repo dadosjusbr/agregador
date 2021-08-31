@@ -89,8 +89,6 @@ func main() {
 		log.Fatalf("error while creating new dir(%s): %q", outDir, err)
 	}
 	switch grop_by {
-	case "agency/year/all":
-
 	case "agency/year":
 		if agency == "" {
 			if err := agregateDataByAgencyYearFromAllAgencies(year, outDir); err != nil {
