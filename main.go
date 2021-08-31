@@ -99,7 +99,8 @@ func main() {
 				log.Fatalf("error while agreggating by agency/year: %q", err)
 			}
 		}
-	case "group/year":
+	default:
+		log.Fatalf("please, select some grouping to aggregate")
 	}
 	fmt.Printf("dados agregados!")
 }
