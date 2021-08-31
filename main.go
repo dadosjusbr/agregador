@@ -105,6 +105,13 @@ func main() {
 			agencies = append(agencies, *ag)
 		}
 		agregateDataByAgencyYear(year, outDir, agencies)
+	case "group/year":
+		if group == "" {
+			log.Fatalf("missing flag group")
+		}
+		if err := agregateDataByGroupYear(year, outDir, group); err != nil {
+			log.Fatalf("error while agreggating by group/year: %q", err)
+		}
 	default:
 		log.Fatalf("please, select some grouping to aggregate")
 	}
