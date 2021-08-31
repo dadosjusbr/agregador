@@ -90,26 +90,26 @@ func main() {
 	}
 	switch grop_by {
 	case "agency/year":
+		var agencies []storage.Agency
 		if agency == "" {
-			if err := agregateDataByAgencyYearFromAllAgencies(year, outDir); err != nil {
-				log.Fatalf("error while agreggating by agency/year: %q", err)
+			if agencies, err = client.Db.GetAllAgencies(); err != nil {
+				log.Fatalf("error while indexing agencies: %q", err)
 			}
 		} else {
-			if err := agregateDataByAgencyYear(year, outDir, agency); err != nil {
-				log.Fatalf("error while agreggating by agency/year: %q", err)
+			ag, err := client.Db.GetAgency(agency)
+			if err != nil {
+				log.Fatalf("error while searching for the agency %s: %q", agency, err)
 			}
+			agencies = append(agencies, *ag)
 		}
+		agregateDataByAgencyYear(year, outDir, agencies)
 	default:
 		log.Fatalf("please, select some grouping to aggregate")
 	}
 	fmt.Printf("dados agregados!")
 }
 
-func agregateDataByAgencyYearFromAllAgencies(year int, outDir string) error {
-	agencies, err := client.Db.GetAllAgencies()
-	if err != nil {
-		return err
-	}
+func agregateDataByAgencyYear(year int, outDir string, agencies []storage.Agency) error {
 	for _, ag := range agencies {
 		agency := ag.ID
 		packages, err := getBackupData(year, agency)
@@ -132,29 +132,6 @@ func agregateDataByAgencyYearFromAllAgencies(year int, outDir string) error {
 		if err := savePackage(dataPackageFilename, year, &agency); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-func agregateDataByAgencyYear(year int, outDir string, agency string) error {
-	packages, err := getBackupData(year, agency)
-	if err != nil {
-		return err
-	}
-	var csvList []string
-	csvList, err = getCsvList(packages, year, agency, outDir, csvList)
-	if err != nil {
-		return err
-	}
-	joinPath := filepath.Join(outDir, "data.csv")
-	if err := mergeMIData(csvList, joinPath); err != nil {
-		return err
-	}
-	dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
-	if err != nil {
-		return err
-	}
-	if err := savePackage(dataPackageFilename, year, &agency); err != nil {
-		return err
 	}
 	return nil
 }
