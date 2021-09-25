@@ -70,6 +70,7 @@ func main() {
 	}
 	var grop_by string
 	var outDir string
+	const packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
 	var year int
 	var agency string
 	flag.StringVar(&grop_by, "group_by", "", "an grop_by in which you want to collect monthly information")
