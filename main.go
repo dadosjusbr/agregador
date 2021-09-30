@@ -73,6 +73,7 @@ func main() {
 	var year int
 	var agency string
 	var group string
+
 	flag.StringVar(&grop_by, "group_by", "", "an grop_by in which you want to collect monthly information")
 	flag.StringVar(&outDir, "outDir", "out", "the output directory")
 	flag.StringVar(&agency, "agency", "", "the given agency to agreggate monthly information")
