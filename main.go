@@ -70,12 +70,14 @@ func main() {
 	}
 	var grop_by string
 	var outDir string
-	const packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
 	var year int
 	var agency string
+	var group string
+
 	flag.StringVar(&grop_by, "group_by", "", "an grop_by in which you want to collect monthly information")
 	flag.StringVar(&outDir, "outDir", "out", "the output directory")
 	flag.StringVar(&agency, "agency", "", "the given agency to agreggate monthly information")
+	flag.StringVar(&group, "group", "", "the given group to agreggate the agencies monthly information")
 	flag.IntVar(&year, "year", 2018, "the agreggation given year")
 	flag.Parse()
 	if grop_by == "" {
@@ -104,6 +106,13 @@ func main() {
 			agencies = append(agencies, *ag)
 		}
 		agregateDataByAgencyYear(year, outDir, agencies)
+	case "group/year":
+		if group == "" {
+			log.Fatalf("missing flag group")
+		}
+		if err := agregateDataByGroupYear(year, outDir, group); err != nil {
+			log.Fatalf("error while agreggating by group/year: %q", err)
+		}
 	default:
 		log.Fatalf("please, select some grouping to aggregate")
 	}
@@ -118,7 +127,7 @@ func agregateDataByAgencyYear(year int, outDir string, agencies []storage.Agency
 			return err
 		}
 		var csvList []string
-		csvList, err = getCsvList(packages, year, agency, outDir, csvList)
+		csvList, err = getCsvListByAgencyYear(packages, year, agency, outDir, csvList)
 		if err != nil {
 			return err
 		}
@@ -130,14 +139,45 @@ func agregateDataByAgencyYear(year int, outDir string, agencies []storage.Agency
 		if err != nil {
 			return err
 		}
-		if err := savePackage(dataPackageFilename, year, &agency); err != nil {
+		if err := saveAgencyByYearPackage(dataPackageFilename, year, &agency); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func savePackage(dataPackageFilename string, year int, agency *string) error {
+func agregateDataByGroupYear(year int, outDir string, group string) error {
+	agencies, _, err := client.Db.GetOPE(group, year)
+	if err != nil {
+		return err
+	}
+	for _, ag := range agencies {
+		agency := ag.ID
+		packages, err := getBackupData(year, agency)
+		if err != nil {
+			return err
+		}
+		var csvList []string
+		csvList, err = getCsvListByGroupYear(packages, year, group, agency, outDir, csvList)
+		if err != nil {
+			return err
+		}
+		joinPath := filepath.Join(outDir, "data.csv")
+		if err := mergeMIData(csvList, joinPath); err != nil {
+			return err
+		}
+		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
+		if err != nil {
+			return err
+		}
+		if err := saveGroupByYearPackage(dataPackageFilename, year, &group); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func saveAgencyByYearPackage(dataPackageFilename string, year int, agency *string) error {
 	fmt.Println("arquivo final criado:", dataPackageFilename)
 	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, *agency)
 	if err != nil {
@@ -154,8 +194,25 @@ func savePackage(dataPackageFilename string, year int, agency *string) error {
 	fmt.Println("arquivo de backup criado", packBackup)
 	return nil
 }
+func saveGroupByYearPackage(dataPackageFilename string, year int, group *string) error {
+	fmt.Println("arquivo final criado:", dataPackageFilename)
+	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, *group)
+	if err != nil {
+		return err
+	}
+	if err := client.StorePackage(storage.Package{
+		AgencyID: nil,
+		Year:     &year,
+		Month:    nil,
+		Group:    group,
+		Package:  *packBackup}); err != nil {
+		return err
+	}
+	fmt.Println("arquivo de backup criado", packBackup)
+	return nil
+}
 
-func getCsvList(packages []extractionData, year int, agency string, outDir string, csvList []string) ([]string, error) {
+func getCsvListByAgencyYear(packages []extractionData, year int, agency string, outDir string, csvList []string) ([]string, error) {
 	for _, p := range packages {
 		if filepath.Ext(p.URL) == ".zip" {
 			zFName := fmt.Sprintf("%d_%d_%s.zip", year, p.Month, agency)
@@ -165,6 +222,31 @@ func getCsvList(packages []extractionData, year int, agency string, outDir strin
 			}
 			fmt.Println("arquivo baixado:", zPath)
 			csvFName := fmt.Sprintf("%d_%d_%s.csv", year, p.Month, agency)
+			csvPath := filepath.Join(outDir, csvFName)
+			if err := unzip(zPath, csvPath); err != nil {
+				return nil, err
+			}
+			fmt.Println("arquivo descompactado:", csvPath)
+			csvList = append(csvList, csvPath)
+			if err := os.Remove(zPath); err != nil {
+				return nil, err
+			}
+			fmt.Println("arquivo zip apagado:", zPath)
+		}
+	}
+	return csvList, nil
+}
+
+func getCsvListByGroupYear(packages []extractionData, year int, group string, agency string, outDir string, csvList []string) ([]string, error) {
+	for _, p := range packages {
+		if filepath.Ext(p.URL) == ".zip" {
+			zFName := fmt.Sprintf("%d_%d_%s_%s.zip", year, p.Month, agency, group)
+			zPath := filepath.Join(outDir, zFName)
+			if err := download(zPath, p.URL); err != nil {
+				return nil, err
+			}
+			fmt.Println("arquivo baixado:", zPath)
+			csvFName := fmt.Sprintf("%d_%d_%s_%s.csv", year, p.Month, agency, group)
 			csvPath := filepath.Join(outDir, csvFName)
 			if err := unzip(zPath, csvPath); err != nil {
 				return nil, err
@@ -267,6 +349,9 @@ func createDataPackage(agency string, year int, packageFileName string, outDir s
 	zipName := filepath.Join(outDir, fmt.Sprintf("%s-%d.zip", agency, year))
 	if err := pkg.Zip(zipName); err != nil {
 		return "", fmt.Errorf("error zipping datapackage (%s:%q)", zipName, err)
+	}
+	if err := os.Remove(filepath.Join(outDir, "data.csv")); err != nil {
+		return "", err
 	}
 	return zipName, nil
 }
