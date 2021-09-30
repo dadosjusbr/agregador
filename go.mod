@@ -3,8 +3,8 @@ module github.com/dadosjusbr/agregador
 go 1.16
 
 require (
-	github.com/dadosjusbr/coletores v0.0.0-20210820092208-154c2887348d // indirect
-	github.com/dadosjusbr/storage v0.0.0-20210823221622-f84af40caa5a
+	github.com/dadosjusbr/coletores v0.0.0-20210827150800-92e4a6a7f133 // indirect
+	github.com/dadosjusbr/storage v0.0.0-20210827182419-a270392c5384
 	github.com/frictionlessdata/datapackage-go v0.0.0-20210810130302-98883c9586e9
 	github.com/frictionlessdata/tableschema-go v1.1.3 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
