@@ -63,6 +63,8 @@ const (
 	packageFileName = "datapackage_descriptor.json" // name of datapackage descriptor
 )
 
+var csvFileNames = []string{"oi"}
+
 func main() {
 	godotenv.Load()
 	if err := envconfig.Process("remuneracao-magistrados", &conf); err != nil {
@@ -133,9 +135,11 @@ func agregateDataByAgencyYear(year int, outDir string, agencies []storage.Agency
 		if err != nil {
 			return err
 		}
-		joinPath := filepath.Join(outDir, "data.csv")
-		if err := mergeMIData(csvList, joinPath); err != nil {
-			return err
+		for _, csvFile := range csvFileNames {
+			joinPath := filepath.Join(outDir, csvFile)
+			if err := mergeMIData(csvList, joinPath); err != nil {
+				return err
+			}
 		}
 		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
 		if err != nil {
@@ -164,9 +168,11 @@ func agregateDataByGroupYear(year int, outDir string, group string) error {
 		if err != nil {
 			return err
 		}
-		joinPath := filepath.Join(outDir, "data.csv")
-		if err := mergeMIData(csvList, joinPath); err != nil {
-			return err
+		for _, csvFile := range csvFileNames {
+			joinPath := filepath.Join(outDir, csvFile)
+			if err := mergeMIData(csvList, joinPath); err != nil {
+				return err
+			}
 		}
 		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
 		if err != nil {
@@ -308,27 +314,29 @@ func unzip(zipPath, csvPath string) error {
 	defer r.Close()
 	for _, f := range r.File {
 		// search for the file data.csv inside the zip files
-		if f.Name == "data.csv" {
-			zipContent, err := f.Open()
-			if err != nil {
-				return fmt.Errorf("error while opening file stream inside zip: %q", err)
-			}
-			err = func() error {
-				out, err := os.Create(csvPath)
+		for _, csvFile := range csvFileNames {
+			if f.Name == csvFile {
+				zipContent, err := f.Open()
 				if err != nil {
-					return fmt.Errorf("error while creating new file(%s): %q", csvPath, err)
+					return fmt.Errorf("error while opening file stream inside zip: %q", err)
 				}
-				defer out.Close()
-				_, err = io.Copy(out, zipContent)
+				err = func() error {
+					out, err := os.Create(csvPath)
+					if err != nil {
+						return fmt.Errorf("error while creating new file(%s): %q", csvPath, err)
+					}
+					defer out.Close()
+					_, err = io.Copy(out, zipContent)
+					if err != nil {
+						return fmt.Errorf("error while filling file stream outside zip: %q", err)
+					}
+					return nil
+				}()
 				if err != nil {
-					return fmt.Errorf("error while filling file stream outside zip: %q", err)
+					return err
 				}
-				return nil
-			}()
-			if err != nil {
-				return err
+				break
 			}
-			break
 		}
 	}
 	return nil
@@ -352,8 +360,10 @@ func createDataPackage(agency string, year int, packageFileName string, outDir s
 	if err := pkg.Zip(zipName); err != nil {
 		return "", fmt.Errorf("error zipping datapackage (%s:%q)", zipName, err)
 	}
-	if err := os.Remove(filepath.Join(outDir, "data.csv")); err != nil {
-		return "", err
+	for _, csvFile := range csvFileNames {
+		if err := os.Remove(filepath.Join(outDir, csvFile)); err != nil {
+			return "", err
+		}
 	}
 	return zipName, nil
 }
