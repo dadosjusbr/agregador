@@ -21,6 +21,8 @@ var (
 )
 
 func TestAgreggationByAgencyYear(t *testing.T) {
-	err := agregateDataByAgencyYear(year, outDir, agencies)
-	assert.Truef(t, err != nil, "Erro agregando dados")
+	t.Run("should go to database get monthly info from 2021 in mppb and agregate", func(t *testing.T) {
+		err := agregateDataByAgencyYear(year, outDir, agencies)
+		assert.Truef(t, err != nil, "Erro agregando dados")
+	})
 }
