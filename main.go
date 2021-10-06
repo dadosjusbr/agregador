@@ -133,21 +133,14 @@ func agregateDataByAgencyYear(year int, outDir string, agencies []storage.Agency
 		if err != nil {
 			return err
 		}
-		fmt.Println(agencies)
-		var csvFullList map[string][]string
-		csvFullList, err = getCsvListByAgencyYear(packages, year, agency, outDir, csvFullList)
+		var csvLists []map[string]string
+		csvLists, err = getCsvListsByAgencyYear(packages, year, agency, outDir, csvLists)
 		if err != nil {
 			return err
 		}
-		for _, csvList := range csvFullList {
-			for _, csvFile := range csvList {
-				joinPath := filepath.Join(outDir, csvFile)
-				if err := mergeMIData(csvList, joinPath); err != nil {
-					return err
-				}
-			}
+		if err := mergeMIData(csvLists, outDir); err != nil {
+			return err
 		}
-		fmt.Println(csvFullList)
 		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
 		if err != nil {
 			return err
@@ -170,18 +163,13 @@ func agregateDataByGroupYear(year int, outDir string, group string) error {
 		if err != nil {
 			return err
 		}
-		var csvFullList map[string][]string
-		csvFullList, err = getCsvListByGroupYear(packages, year, group, agency, outDir, csvFullList)
+		var csvLists []map[string]string
+		csvLists, err = getCsvListByGroupYear(packages, year, group, agency, outDir, csvLists)
 		if err != nil {
 			return err
 		}
-		for _, csvList := range csvFullList {
-			for _, csvFile := range csvList {
-				joinPath := filepath.Join(outDir, csvFile)
-				if err := mergeMIData(csvList, joinPath); err != nil {
-					return err
-				}
-			}
+		if err := mergeMIData(csvLists, outDir); err != nil {
+			return err
 		}
 		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
 		if err != nil {
@@ -229,37 +217,34 @@ func saveGroupByYearPackage(dataPackageFilename string, year int, group *string)
 	return nil
 }
 
-func getCsvListByAgencyYear(packages []extractionData, year int, agency string, outDir string, csvList map[string][]string) (map[string][]string, error) {
+func getCsvListsByAgencyYear(packages []extractionData, year int, agency string, outDir string, csvLists []map[string]string) ([]map[string]string, error) {
 	for _, p := range packages {
 		if filepath.Ext(p.URL) == ".zip" {
 			zFName := fmt.Sprintf("%d_%d_%s.zip", year, p.Month, agency)
 			zPath := filepath.Join(outDir, zFName)
 			fmt.Println("arquivo baixado:", zPath)
-			fmt.Println("oio")
-			fmt.Println(zPath)
-			fmt.Println("oio")
 			if err := download(zPath, p.URL); err != nil {
 				return nil, err
 			}
 			csvFName := fmt.Sprintf("%d_%d_%s.csv", year, p.Month, agency)
-			csvPath := filepath.Join(outDir, csvFName)
-			extractedFiles, err := unzip(zPath, csvPath)
-			fmt.Println(extractedFiles)
+			extractedFiles, err := unzip(zPath, csvFName, outDir)
 			if err != nil {
 				return nil, err
 			}
-			fmt.Println("arquivo descompactado:", csvPath)
-			csvList[p.Hash] = extractedFiles
+			for _, f := range extractedFiles {
+				fmt.Println("arquivo descompactado:", f)
+			}
+			csvLists = append(csvLists, extractedFiles)
 			if err := os.Remove(zPath); err != nil {
 				return nil, err
 			}
 			fmt.Println("arquivo zip apagado:", zPath)
 		}
 	}
-	return csvList, nil
+	return csvLists, nil
 }
 
-func getCsvListByGroupYear(packages []extractionData, year int, group string, agency string, outDir string, csvList map[string][]string) (map[string][]string, error) {
+func getCsvListByGroupYear(packages []extractionData, year int, group string, agency string, outDir string, csvLists []map[string]string) ([]map[string]string, error) {
 	for _, p := range packages {
 		if filepath.Ext(p.URL) == ".zip" {
 			zFName := fmt.Sprintf("%d_%d_%s_%s.zip", year, p.Month, agency, group)
@@ -270,19 +255,21 @@ func getCsvListByGroupYear(packages []extractionData, year int, group string, ag
 			fmt.Println("arquivo baixado:", zPath)
 			csvFName := fmt.Sprintf("%d_%d_%s_%s.csv", year, p.Month, agency, group)
 			csvPath := filepath.Join(outDir, csvFName)
-			extractedFiles, err := unzip(zPath, csvPath)
+			extractedFiles, err := unzip(zPath, csvPath, outDir)
 			if err != nil {
 				return nil, err
 			}
-			fmt.Println("arquivo descompactado:", csvPath)
-			csvList[p.Hash] = extractedFiles
+			for _, f := range extractedFiles {
+				fmt.Println("arquivo descompactado:", f)
+			}
+			csvLists = append(csvLists, extractedFiles)
 			if err := os.Remove(zPath); err != nil {
 				return nil, err
 			}
 			fmt.Println("arquivo zip apagado:", zPath)
 		}
 	}
-	return csvList, nil
+	return csvLists, nil
 }
 func getBackupData(year int, agency string) ([]extractionData, error) {
 	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
@@ -321,9 +308,9 @@ func download(fp string, url string) error {
 	}
 	return nil
 }
-func unzip(zipPath, csvPath string) ([]string, error) {
+func unzip(zipPath, csvFName string, outDir string) (map[string]string, error) {
+	extractedFiles := make(map[string]string)
 	r, err := zip.OpenReader(zipPath)
-	var extractedFiles []string
 	if err != nil {
 		return nil, fmt.Errorf("error while extracting zip files: %q", err)
 	}
@@ -331,23 +318,23 @@ func unzip(zipPath, csvPath string) ([]string, error) {
 	for _, f := range r.File {
 		// search for the file data.csv inside the zip files
 		for _, csvFile := range csvFileNames {
-			if f.Name == fmt.Sprintf("%s.zip", csvFile) {
+			if f.Name == fmt.Sprintf("%s.csv", csvFile) {
 				zipContent, err := f.Open()
 				if err != nil {
 					return nil, fmt.Errorf("error while opening file stream inside zip: %q", err)
 				}
 				err = func() error {
-					csvFileName := fmt.Sprintf("%s_%s", csvFile, csvPath)
+					csvFileName := filepath.Join(outDir, fmt.Sprintf("%s_%s", csvFile, csvFName))
 					out, err := os.Create(csvFileName)
 					if err != nil {
-						return fmt.Errorf("error while creating new file(%s): %q", csvPath, err)
+						return fmt.Errorf("error while creating new file(%s): %q", csvFileName, err)
 					}
 					defer out.Close()
 					_, err = io.Copy(out, zipContent)
 					if err != nil {
 						return fmt.Errorf("error while filling file stream outside zip: %q", err)
 					}
-					extractedFiles = append(extractedFiles, csvFileName)
+					extractedFiles[csvFile] = csvFileName
 					return nil
 				}()
 				if err != nil {
@@ -386,45 +373,49 @@ func createDataPackage(agency string, year int, packageFileName string, outDir s
 	return zipName, nil
 }
 
-func mergeMIData(filePaths []string, joinPath string) error {
-	var finalCsv [][]string
-	for i, f := range filePaths {
-		csvLines, err := func() ([][]string, error) {
-			csvFile, err := os.Open(f)
-			if err != nil {
-				return nil, err
-			}
-			defer csvFile.Close()
-			return csv.NewReader(csvFile).ReadAll()
-		}()
-		if err != nil {
-			return fmt.Errorf("error while reading csv file: %q", err)
-		}
-		for _, line := range csvLines {
-			if i != 0 {
-				if line[0] != "aid" {
-					finalCsv = append(finalCsv, line)
+func mergeMIData(csvLists []map[string]string, outDir string) error {
+	finalCsvs := make(map[string][][]string)
+	for i, csvList := range csvLists {
+		for key, f := range csvList {
+			csvLines, err := func() ([][]string, error) {
+				csvFile, err := os.Open(f)
+				if err != nil {
+					return nil, err
 				}
-			} else {
-				finalCsv = append(finalCsv, line)
+				defer csvFile.Close()
+				return csv.NewReader(csvFile).ReadAll()
+			}()
+			if err != nil {
+				return fmt.Errorf("error while reading csv file: %q", err)
+			}
+			for _, line := range csvLines {
+				if i != 0 {
+					if line[0] != "chave_coleta" && line[0] != "IdContraCheque" && line[0] != "aid" {
+						finalCsvs[key] = append(finalCsvs[key], line)
+					}
+				} else {
+					finalCsvs[key] = append(finalCsvs[key], line)
+				}
+			}
+			// deletes the csv file after read
+			if err := os.Remove(f); err != nil {
+				return err
 			}
 		}
-		// deletes the csv file after read
-		if err := os.Remove(f); err != nil {
-			return err
+	}
+	for key, finalCsv := range finalCsvs {
+		finalCsvFile, err := os.Create(fmt.Sprintf("%s/%s.csv", outDir, key))
+		if err != nil {
+			return fmt.Errorf("failed creating file: %q", err)
 		}
-	}
-	finalCsvFile, err := os.Create(joinPath)
-	if err != nil {
-		return fmt.Errorf("failed creating file: %q", err)
-	}
-	csvwriter := csv.NewWriter(finalCsvFile)
-	for _, empRow := range finalCsv {
-		if err := csvwriter.Write(empRow); err != nil {
-			return fmt.Errorf("error writing csv file: %q", err)
+		csvwriter := csv.NewWriter(finalCsvFile)
+		for _, empRow := range finalCsv {
+			if err := csvwriter.Write(empRow); err != nil {
+				return fmt.Errorf("error writing csv file: %q", err)
+			}
 		}
+		csvwriter.Flush()
+		finalCsvFile.Close()
 	}
-	csvwriter.Flush()
-	finalCsvFile.Close()
 	return nil
 }
