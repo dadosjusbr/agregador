@@ -23,10 +23,11 @@ Para escolher um grupo é necessário passar a flag `group_by` e dizer qual o ag
 - `agency` (opitional): O órgão selecionado para agregar
 - `group` (opitional): A UF ou Grupo Jurídico (MP, TJ) selecionado para agregar
 
-### Os comandos para gerar um build e executar o agregador são:
+### Como contribuir:
+
+com o compilador já instalado
 
 ```sh
 go get
-go build -o agregador
-./agregador --group_by=${GRUPO_DE_AGREGAÇÃO} --year=${ANO} --agency=${ORGAO}
+go run main.go
 ```
