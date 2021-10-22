@@ -66,7 +66,8 @@ const (
 var csvFileNames = []string{
 	"coleta",
 	"contra_cheque",
-	"remuneracao"}
+	"remuneracao",
+	"metadados"}
 
 func main() {
 	godotenv.Load()
