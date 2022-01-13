@@ -111,15 +111,40 @@ func main() {
 			}
 			agencies = append(agencies, *ag)
 		}
-		if err := agregateDataByAgencyYear(year, outDir, agencies); err != nil {
-			log.Fatalf("error while agreggating by agency/year: %q", err)
+		// Itera sobre todas as agências: para o caso do parâmetro agency/year ser vazio.
+		for _, ag := range agencies {
+			amiMap, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: ag.ID}}, year)
+			if err != nil {
+				log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
+			}
+			amis, ok := amiMap[ag.ID]
+			if !ok {
+				log.Fatalf("error while agreggating by agency/year -- there is no ami for %s", ag.ID)
+			}
+			if err := agregateDataByAgencyYear(year, outDir, ag, amis); err != nil {
+				log.Fatalf("error while agreggating by agency/year: %q", err)
+			}
 		}
 	case "group/year":
 		if group == "" {
 			log.Fatalf("missing flag group")
 		}
-		if err := agregateDataByGroupYear(year, outDir, group); err != nil {
+		agencies, _, err := client.Db.GetOPE(group, year)
+		if err != nil {
 			log.Fatalf("error while agreggating by group/year: %q", err)
+		}
+		for _, ag := range agencies {
+			amiMap, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: ag.ID}}, year)
+			if err != nil {
+				log.Fatalf("error while agreggating by group/year -- error fetching data: %v", err)
+			}
+			amis, ok := amiMap[ag.ID]
+			if !ok {
+				log.Fatalf("error while agreggating by group/year -- there is no ami for %s", ag.ID)
+			}
+			if err := agregateDataByGroupYear(year, outDir, group, ag, amis); err != nil {
+				log.Fatalf("error while agreggating by group/year: %q", err)
+			}
 		}
 	default:
 		log.Fatalf("please, select some grouping to aggregate")
@@ -127,58 +152,50 @@ func main() {
 	fmt.Printf("dados agregados!")
 }
 
-func agregateDataByAgencyYear(year int, outDir string, agencies []storage.Agency) error {
-	for _, ag := range agencies {
-		agency := ag.ID
-		packages, err := getBackupData(year, agency)
-		if err != nil {
-			return err
-		}
-		var csvLists []map[string]string
-		csvLists, err = getCsvListsByAgencyYear(packages, year, agency, outDir, csvLists)
-		if err != nil {
-			return err
-		}
-		if err := mergeMIData(csvLists, outDir); err != nil {
-			return err
-		}
-		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
-		if err != nil {
-			return err
-		}
-		if err := saveAgencyByYearPackage(dataPackageFilename, year, &agency); err != nil {
-			return err
-		}
+func agregateDataByAgencyYear(year int, outDir string, ag storage.Agency, amis []storage.AgencyMonthlyInfo) error {
+	agency := ag.ID
+	packages, err := getBackupData(amis)
+	if err != nil {
+		return err
+	}
+	var csvLists []map[string]string
+	csvLists, err = getCsvListsByAgencyYear(packages, year, agency, outDir, csvLists)
+	if err != nil {
+		return err
+	}
+	if err := mergeMIData(csvLists, outDir); err != nil {
+		return err
+	}
+	dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
+	if err != nil {
+		return err
+	}
+	if err := saveAgencyByYearPackage(dataPackageFilename, year, &agency); err != nil {
+		return err
 	}
 	return nil
 }
 
-func agregateDataByGroupYear(year int, outDir string, group string) error {
-	agencies, _, err := client.Db.GetOPE(group, year)
+func agregateDataByGroupYear(year int, outDir string, group string, ag storage.Agency, amis []storage.AgencyMonthlyInfo) error {
+	agency := ag.ID
+	packages, err := getBackupData(amis)
 	if err != nil {
 		return err
 	}
-	for _, ag := range agencies {
-		agency := ag.ID
-		packages, err := getBackupData(year, agency)
-		if err != nil {
-			return err
-		}
-		var csvLists []map[string]string
-		csvLists, err = getCsvListByGroupYear(packages, year, group, agency, outDir, csvLists)
-		if err != nil {
-			return err
-		}
-		if err := mergeMIData(csvLists, outDir); err != nil {
-			return err
-		}
-		dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
-		if err != nil {
-			return err
-		}
-		if err := saveGroupByYearPackage(dataPackageFilename, year, &group); err != nil {
-			return err
-		}
+	var csvLists []map[string]string
+	csvLists, err = getCsvListByGroupYear(packages, year, group, agency, outDir, csvLists)
+	if err != nil {
+		return err
+	}
+	if err := mergeMIData(csvLists, outDir); err != nil {
+		return err
+	}
+	dataPackageFilename, err := createDataPackage(agency, year, packageFileName, outDir)
+	if err != nil {
+		return err
+	}
+	if err := saveGroupByYearPackage(dataPackageFilename, year, &group); err != nil {
+		return err
 	}
 	return nil
 }
@@ -272,22 +289,18 @@ func getCsvListByGroupYear(packages []extractionData, year int, group string, ag
 	}
 	return csvLists, nil
 }
-func getBackupData(year int, agency string) ([]extractionData, error) {
-	agenciesMonthlyInfo, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: agency}}, year)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching data: %v", err)
-	}
-	var packages []extractionData
-	for _, agencyMonthlyInfo := range agenciesMonthlyInfo[agency] {
-		if agencyMonthlyInfo.Package != nil {
-			packages = append(packages,
-				extractionData{Year: agencyMonthlyInfo.Year,
-					Month: agencyMonthlyInfo.Month,
-					URL:   agencyMonthlyInfo.Package.URL,
-					Hash:  agencyMonthlyInfo.Package.Hash})
+func getBackupData(amis []storage.AgencyMonthlyInfo) ([]extractionData, error) {
+	var pkgs []extractionData
+	for _, ami := range amis {
+		if ami.Package != nil {
+			pkgs = append(pkgs,
+				extractionData{Year: ami.Year,
+					Month: ami.Month,
+					URL:   ami.Package.URL,
+					Hash:  ami.Package.Hash})
 		}
 	}
-	return packages, nil
+	return pkgs, nil
 }
 
 func download(fp string, url string) error {
