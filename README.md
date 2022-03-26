@@ -8,8 +8,6 @@ Para escolher um grupo é necessário passar a flag `group_by` e dizer qual o ag
 
 - Todos os Órgãos individualmente em um determinado ano: `--group_by=agency/year`
 
-- Por uma UF ou Grupo Jurídico (MP, TJ) em um determinado ano: `group_by=group/year --group=AL`
-
 ## Como usar
 
 - É preciso ter o compilador de Go instalado em sua máquina. Mais informações [aqui](https://golang.org/dl/).
@@ -21,7 +19,6 @@ Para escolher um grupo é necessário passar a flag `group_by` e dizer qual o ag
 - `year`: O ano da agregação
 - `outDir` (opitional): O diretorio de saída onde os dados agregados serão mantidos
 - `agency` (opitional): O órgão selecionado para agregar
-- `group` (opitional): A UF ou Grupo Jurídico (MP, TJ) selecionado para agregar
 
 ### Como contribuir:
 
