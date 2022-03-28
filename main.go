@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -11,21 +10,26 @@ import (
 
 	"github.com/dadosjusbr/datapackage"
 	"github.com/dadosjusbr/storage"
-	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 )
 
 type config struct {
-	MongoURI       string `envconfig:"MONGODB_URI" required:"true"`
-	MongoDBName    string `envconfig:"MONGODB_NAME" required:"true"`
-	MongoMICol     string `envconfig:"MONGODB_MICOL" required:"true"`
-	MongoAgCol     string `envconfig:"MONGODB_AGCOL" required:"true"`
-	MongoPkgCol    string `envconfig:"MONGODB_PKGCOL" required:"true"`
+	MongoURI    string `envconfig:"MONGODB_URI" required:"true"`
+	MongoDBName string `envconfig:"MONGODB_NAME" required:"true"`
+	MongoMICol  string `envconfig:"MONGODB_MICOL" required:"true"`
+	MongoAgCol  string `envconfig:"MONGODB_AGCOL" required:"true"`
+	MongoPkgCol string `envconfig:"MONGODB_PKGCOL" required:"true"`
+	MongoRevCol string `envconfig:"MONGODB_REVCOL" required:"true"`
+
 	SwiftUsername  string `envconfig:"SWIFT_USERNAME" required:"true"`
 	SwiftAPIKey    string `envconfig:"SWIFT_APIKEY" required:"true"`
 	SwiftAuthURL   string `envconfig:"SWIFT_AUTHURL" required:"true"`
 	SwiftDomain    string `envconfig:"SWIFT_DOMAIN" required:"true"`
 	SwiftContainer string `envconfig:"SWIFT_CONTAINER" required:"true"`
+
+	Agency       string `envconfig:"AID" required:"true"`
+	Year         int    `envconfig:"YEAR" required:"true"`
+	OutputFolder string `envconfig:"OUTPUT_FOLDER" required:"true"`
 }
 
 type extractionData struct {
@@ -38,87 +42,29 @@ type extractionData struct {
 var conf config
 var client *storage.Client
 
-func newClient(c config) (*storage.Client, error) {
-	if c.MongoMICol == "" || c.MongoAgCol == "" {
-		return nil, fmt.Errorf("error creating storage client: db collections must not be empty. MI:\"%s\", AG:\"%s\"", c.MongoMICol, c.MongoAgCol)
-	}
-	db, err := storage.NewDBClient(c.MongoURI, c.MongoDBName, c.MongoMICol, c.MongoAgCol, c.MongoPkgCol)
-	if err != nil {
-		return nil, fmt.Errorf("error creating DB client: %q", err)
-	}
-	db.Collection(c.MongoMICol)
-	bc := storage.NewCloudClient(conf.SwiftUsername, conf.SwiftAPIKey, conf.SwiftAuthURL, conf.SwiftDomain, conf.SwiftContainer)
-	client, err := storage.NewClient(db, bc)
-	if err != nil {
-		return nil, fmt.Errorf("error creating storage.client: %q", err)
-	}
-	return client, nil
-}
-
 func main() {
-	godotenv.Load()
-	if err := envconfig.Process("remuneracao-magistrados", &conf); err != nil {
+	if err := envconfig.Process("agregador", &conf); err != nil {
 		log.Fatal(err)
 	}
-	var grop_by string
-	var outDir string
-	var year int
-	var agency string
-	var group string
-
-	flag.StringVar(&grop_by, "group_by", "", "an grop_by in which you want to collect monthly information")
-	flag.StringVar(&outDir, "outDir", "out", "the output directory")
-	flag.StringVar(&agency, "agency", "", "the given agency to agreggate monthly information")
-	flag.StringVar(&group, "group", "", "the given group to agreggate the agencies monthly information")
-	flag.IntVar(&year, "year", 2018, "the agreggation given year")
-	flag.Parse()
-	if grop_by == "" {
-		log.Fatalf("missing flag group_by")
-	}
-	c, err := newClient(conf)
+	client, err := newClient(conf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	client = c
-	if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
-		log.Fatalf("error while creating new dir(%s): %q", outDir, err)
+	amiMap, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: conf.Agency}}, conf.Year)
+	if err != nil {
+		log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
 	}
-	switch grop_by {
-	case "agency/year":
-		var agencies []storage.Agency
-		if agency == "" {
-			if agencies, err = client.Db.GetAllAgencies(); err != nil {
-				log.Fatalf("error while indexing agencies: %q", err)
-			}
-		} else {
-			ag, err := client.Db.GetAgency(agency)
-			if err != nil {
-				log.Fatalf("error while searching for the agency %s: %q", agency, err)
-			}
-			agencies = append(agencies, *ag)
-		}
-		// Itera sobre todas as agências: para o caso do parâmetro agency/year ser vazio.
-		for _, ag := range agencies {
-			amiMap, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: ag.ID}}, year)
-			if err != nil {
-				log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
-			}
-			amis, ok := amiMap[ag.ID]
-			if !ok {
-				log.Fatalf("error while agreggating by agency/year -- there is no ami for %s", ag.ID)
-			}
-			pkgPath, err := createAggregatedPackage(year, outDir, ag.ID, amis)
-			if err != nil {
-				log.Fatalf("error while agreggating by agency/year: %q", err)
-			}
-			if err := updateDB(pkgPath, year); err != nil {
-				log.Fatalf("error while agreggating by agency/year: %q", err)
-			}
-		}
-	default:
-		log.Fatalf("please, select some grouping to aggregate")
+	amis, ok := amiMap[conf.Agency]
+	if !ok {
+		log.Fatalf("error while agreggating by agency/year -- there is no ami for %s", conf.Agency)
 	}
-	fmt.Printf("dados agregados!")
+	pkgPath, err := createAggregatedPackage(conf.Year, conf.OutputFolder, conf.Agency, amis)
+	if err != nil {
+		log.Fatalf("error while agreggating by agency/year: %q", err)
+	}
+	if err := updateDB(pkgPath, conf.Year); err != nil {
+		log.Fatalf("error while agreggating by agency/year: %q", err)
+	}
 }
 
 func createAggregatedPackage(year int, outDir, agency string, amis []storage.AgencyMonthlyInfo) (string, error) {
@@ -215,4 +161,21 @@ func download(fp string, url string) error {
 		return err
 	}
 	return nil
+}
+
+func newClient(c config) (*storage.Client, error) {
+	if c.MongoMICol == "" || c.MongoAgCol == "" {
+		return nil, fmt.Errorf("error creating storage client: db collections must not be empty. MI:\"%s\", AG:\"%s\"", c.MongoMICol, c.MongoAgCol)
+	}
+	db, err := storage.NewDBClient(c.MongoURI, c.MongoDBName, c.MongoMICol, c.MongoAgCol, c.MongoPkgCol, c.MongoRevCol)
+	if err != nil {
+		return nil, fmt.Errorf("error creating DB client: %q", err)
+	}
+	db.Collection(c.MongoMICol)
+	bc := storage.NewCloudClient(conf.SwiftUsername, conf.SwiftAPIKey, conf.SwiftAuthURL, conf.SwiftDomain, conf.SwiftContainer)
+	client, err := storage.NewClient(db, bc)
+	if err != nil {
+		return nil, fmt.Errorf("error creating storage.client: %q", err)
+	}
+	return client, nil
 }

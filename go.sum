@@ -3,13 +3,13 @@ github.com/aws/aws-sdk-go v1.34.28/go.mod h1:H7NKnBqNVzoTJpGfLrQkkD+ytBA93eiDYi/
 github.com/dadosjusbr/coletores v0.0.0-20201216050911-0186b4dcc191/go.mod h1:/MYAexbepJrBZGhKACp2ZAbRSrexfvccln0ig/0ci6E=
 github.com/dadosjusbr/coletores v0.0.0-20210928113650-4c03e4fa3b74 h1:biTIncJC0XYYqAVEJHJRI5dTUgEp9K7AfTrUj9JzvNc=
 github.com/dadosjusbr/coletores v0.0.0-20210928113650-4c03e4fa3b74/go.mod h1:m9opDykSJIwaf+veICpleWMranaaWEbx5RNQhKZAgXU=
-github.com/dadosjusbr/datapackage v0.0.0-20220325221327-13f07807ec56 h1:snqcc8HmrdvC5jHkSKDg4Z99ZPiRowvr1ticZ4K8Zrs=
-github.com/dadosjusbr/datapackage v0.0.0-20220325221327-13f07807ec56/go.mod h1:osoREVGaBhWHFvEPZD1YIKnSzN0muUgvqGDr2MTGcEs=
+github.com/dadosjusbr/datapackage v0.0.0-20220328145154-6a0dc83be3e0 h1:cUHOoaOdscqtbNVPNo9sqyKFy94ZpDO3y1UQPuxm+pI=
+github.com/dadosjusbr/datapackage v0.0.0-20220328145154-6a0dc83be3e0/go.mod h1:osoREVGaBhWHFvEPZD1YIKnSzN0muUgvqGDr2MTGcEs=
 github.com/dadosjusbr/proto v0.0.0-20211004174721-e51d25d61af2/go.mod h1:a04KL3nn5wvlJTuoTYggaeokQi3njDyt9L7Ss9EQEJQ=
 github.com/dadosjusbr/proto v0.0.0-20220304160723-47e93e9d97b5 h1:T1vX+7BhXkkYRZnRdla0Z8Uu9Emww7x2jNbowmbtOwM=
 github.com/dadosjusbr/proto v0.0.0-20220304160723-47e93e9d97b5/go.mod h1:a04KL3nn5wvlJTuoTYggaeokQi3njDyt9L7Ss9EQEJQ=
-github.com/dadosjusbr/storage v0.0.0-20220113145519-9322fdb43b94 h1:wWGtl93lNifNWegvVE6mAGNKYwuvToH0Ww1YArADWW0=
-github.com/dadosjusbr/storage v0.0.0-20220113145519-9322fdb43b94/go.mod h1:QwThwjQA+ZNDB1pYpiIBeXo/mtg7GDJcNDVH3wWDCHQ=
+github.com/dadosjusbr/storage v0.0.0-20220322134024-060bbf15cee1 h1:hDySja8tMEfMjyGov4dPAi/CaFZPQ3sC9zfMrtJ4eLY=
+github.com/dadosjusbr/storage v0.0.0-20220322134024-060bbf15cee1/go.mod h1:QwThwjQA+ZNDB1pYpiIBeXo/mtg7GDJcNDVH3wWDCHQ=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -60,8 +60,6 @@ github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANyt
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1/go.mod h1:L3OGu8Wl2/fWfCI6z80xFu9LTZmf1ZRjMHUOPmWr69U=
 github.com/joho/godotenv v1.3.0/go.mod h1:7hK45KPybAkOC6peb+G5yklZfMxEjkZhHbwpqxOKXbg=
-github.com/joho/godotenv v1.4.0 h1:3l4+N6zfMWnkbPEXKng2o2/MR5mSwTrBih4ZEkkz1lg=
-github.com/joho/godotenv v1.4.0/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/karrick/godirwalk v1.8.0/go.mod h1:H5KPZjojv4lE+QYImBI8xVtrBRgYrIVsaRPx4tDPEn4=
 github.com/karrick/godirwalk v1.10.3/go.mod h1:RoGL9dQei4vP9ilrpETWE8CLOZ1kiN0LhBygSwrAsHA=
 github.com/kelseyhightower/envconfig v1.4.0 h1:Im6hONhd3pLkfDFsbRgu68RDNkGF1r3dvMUtDTo2cv8=

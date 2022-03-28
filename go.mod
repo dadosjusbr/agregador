@@ -4,13 +4,12 @@ go 1.16
 
 require (
 	github.com/dadosjusbr/coletores v0.0.0-20210928113650-4c03e4fa3b74 // indirect
-	github.com/dadosjusbr/datapackage v0.0.0-20220325221327-13f07807ec56
-	github.com/dadosjusbr/storage v0.0.0-20220113145519-9322fdb43b94
+	github.com/dadosjusbr/datapackage v0.0.0-20220328145154-6a0dc83be3e0
+	github.com/dadosjusbr/storage v0.0.0-20220322134024-060bbf15cee1
 	github.com/frictionlessdata/tableschema-go v1.1.3 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gocarina/gocsv v0.0.0-20210516172204-ca9e8a8ddea8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/joho/godotenv v1.4.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/klauspost/compress v1.14.1 // indirect
 	github.com/ncw/swift v1.0.53 // indirect
