@@ -15,7 +15,7 @@ import (
 
 type config struct {
 	MongoURI    string `envconfig:"MONGODB_URI" required:"true"`
-	MongoDBName string `envconfig:"MONGODB_NAME" required:"true"`
+	MongoDBName string `envconfig:"MONGODB_DBNAME" required:"true"`
 	MongoMICol  string `envconfig:"MONGODB_MICOL" required:"true"`
 	MongoAgCol  string `envconfig:"MONGODB_AGCOL" required:"true"`
 	MongoPkgCol string `envconfig:"MONGODB_PKGCOL" required:"true"`
