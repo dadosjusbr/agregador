@@ -39,10 +39,8 @@ type extractionData struct {
 	Hash  string
 }
 
-var conf config
-var client *storage.Client
-
 func main() {
+	var conf config
 	if err := envconfig.Process("", &conf); err != nil {
 		log.Fatal(err)
 	}
@@ -62,8 +60,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("error while agreggating by agency/year: %q", err)
 	}
-	if err := updateDB(pkgPath, conf.Agency, conf.Year); err != nil {
-		log.Fatalf("error while agreggating by agency/year: %q", err)
+
+	packBackup, err := client.Cloud.UploadFile(pkgPath, conf.Agency)
+	if err != nil {
+		log.Fatalf("Error while uploading package: %q", err)
+	}
+
+	if err := client.StorePackage(storage.Package{
+		AgencyID: nil,
+		Year:     &conf.Year,
+		Month:    nil,
+		Group:    nil,
+		Package:  *packBackup}); err != nil {
+		log.Fatalf("Error while updating DB: %q", err)
 	}
 }
 
@@ -93,25 +102,6 @@ func createAggregatedPackage(year int, outDir, agency string, amis []storage.Age
 	}
 	return pkgName, nil
 }
-
-func updateDB(dataPackageFilename string, agency string, year int) error {
-	fmt.Println("arquivo final criado:", dataPackageFilename)
-	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, agency)
-	if err != nil {
-		return err
-	}
-	if err := client.StorePackage(storage.Package{
-		AgencyID: nil,
-		Year:     &year,
-		Month:    nil,
-		Group:    nil,
-		Package:  *packBackup}); err != nil {
-		return err
-	}
-	fmt.Println("arquivo de backup criado", packBackup)
-	return nil
-}
-
 func downloadPackages(packages []extractionData, year int, agency string, outDir string) ([]string, error) {
 	var pkgs []string
 	for _, p := range packages {
@@ -171,7 +161,7 @@ func newClient(c config) (*storage.Client, error) {
 		return nil, fmt.Errorf("error creating DB client: %q", err)
 	}
 	db.Collection(c.MongoMICol)
-	bc := storage.NewCloudClient(conf.SwiftUsername, conf.SwiftAPIKey, conf.SwiftAuthURL, conf.SwiftDomain, conf.SwiftContainer)
+	bc := storage.NewCloudClient(c.SwiftUsername, c.SwiftAPIKey, c.SwiftAuthURL, c.SwiftDomain, c.SwiftContainer)
 	client, err := storage.NewClient(db, bc)
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage.client: %q", err)
