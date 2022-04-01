@@ -67,7 +67,7 @@ func main() {
 	}
 
 	if err := client.StorePackage(storage.Package{
-		AgencyID: nil,
+		AgencyID: &conf.Agency,
 		Year:     &conf.Year,
 		Month:    nil,
 		Group:    nil,
