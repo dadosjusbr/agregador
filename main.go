@@ -62,7 +62,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error while agreggating by agency/year: %q", err)
 	}
-	if err := updateDB(pkgPath, conf.Year); err != nil {
+	if err := updateDB(pkgPath, conf.Agency, conf.Year); err != nil {
 		log.Fatalf("error while agreggating by agency/year: %q", err)
 	}
 }
@@ -94,10 +94,9 @@ func createAggregatedPackage(year int, outDir, agency string, amis []storage.Age
 	return pkgName, nil
 }
 
-func updateDB(dataPackageFilename string, year int) error {
+func updateDB(dataPackageFilename string, agency string, year int) error {
 	fmt.Println("arquivo final criado:", dataPackageFilename)
-	var nogrop *string // necessária pois não queremos agrupamento por grupo nesse momento.
-	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, *nogrop)
+	packBackup, err := client.Cloud.UploadFile(dataPackageFilename, agency)
 	if err != nil {
 		return err
 	}
