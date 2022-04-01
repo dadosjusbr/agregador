@@ -1,10 +1,14 @@
-FROM golang:1.16.0-alpine AS builder
+FROM golang:1.18.0-alpine AS builder
 
 # Set necessary environmet variables needed for our image
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64
+
+# Install important deps needed for compiling in go1.8+
+RUN apk update
+RUN apk add git
 
 # Move to working directory /build
 WORKDIR /build
