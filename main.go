@@ -43,7 +43,7 @@ var conf config
 var client *storage.Client
 
 func main() {
-	if err := envconfig.Process("agregador", &conf); err != nil {
+	if err := envconfig.Process("", &conf); err != nil {
 		log.Fatal(err)
 	}
 	client, err := newClient(conf)
