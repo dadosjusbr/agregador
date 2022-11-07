@@ -21,6 +21,15 @@ type config struct {
 	MongoPkgCol string `envconfig:"MONGODB_PKGCOL" required:"true"`
 	MongoRevCol string `envconfig:"MONGODB_REVCOL" required:"true"`
 
+	PostgresUser     string `envconfig:"POSTGRES_USER" required:"true"`
+	PostgresPassword string `envconfig:"POSTGRES_PASSWORD" required:"true"`
+	PostgresDBName   string `envconfig:"POSTGRES_DBNAME" required:"true"`
+	PostgresHost     string `envconfig:"POSTGRES_HOST" required:"true"`
+	PostgresPort     string `envconfig:"POSTGRES_PORT" required:"true"`
+
+	AWSRegion string `envconfig:"AWS_REGION" required:"true"`
+	S3Bucket  string `envconfig:"S3_BUCKET" required:"true"`
+
 	SwiftUsername  string `envconfig:"SWIFT_USERNAME" required:"true"`
 	SwiftAPIKey    string `envconfig:"SWIFT_APIKEY" required:"true"`
 	SwiftAuthURL   string `envconfig:"SWIFT_AUTHURL" required:"true"`
@@ -37,6 +46,7 @@ type extractionData struct {
 	Month int
 	URL   string
 	Hash  string
+	Size  int64
 }
 
 func main() {
@@ -44,11 +54,25 @@ func main() {
 	if err := envconfig.Process("", &conf); err != nil {
 		log.Fatal(err)
 	}
-	client, err := newClient(conf)
+	// Criando o client do MongoDB
+	mongoDb, err := storage.NewDBClient(conf.MongoURI, conf.MongoDBName, conf.MongoMICol, conf.MongoAgCol, conf.MongoPkgCol, conf.MongoRevCol)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error creating MongoDB client: %v", err.Error())
 	}
-	amiMap, err := client.Db.GetMonthlyInfo([]storage.Agency{{ID: conf.Agency}}, conf.Year)
+	mongoDb.Collection(conf.MongoMICol)
+	// Criando o client do S3
+	s3Client, err := storage.NewS3Client(conf.AWSRegion, conf.S3Bucket)
+	if err != nil {
+		log.Fatalf("error creating S3 client: %v", err.Error())
+	}
+	// Criando o client do storage a partir do banco mongodb e do client do s3
+	mgoCloudClient, err := storage.NewClient(mongoDb, s3Client)
+	if err != nil {
+		log.Fatalf("error setting up mongo storage client: %s", err)
+	}
+	defer mgoCloudClient.Db.Disconnect()
+
+	amiMap, err := mgoCloudClient.Db.GetMonthlyInfo([]storage.Agency{{ID: conf.Agency}}, conf.Year)
 	if err != nil {
 		log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
 	}
@@ -61,12 +85,14 @@ func main() {
 		log.Fatalf("error while agreggating by agency/year: %q", err)
 	}
 
-	packBackup, err := client.Cloud.UploadFile(pkgPath, conf.Agency)
+	pkgS3Key := fmt.Sprintf("%s/datapackage/%s", conf.Agency, filepath.Base(pkgPath))
+
+	packBackup, err := mgoCloudClient.Cloud.UploadFile(pkgPath, pkgS3Key)
 	if err != nil {
 		log.Fatalf("Error while uploading package: %q", err)
 	}
 
-	if err := client.StorePackage(storage.Package{
+	if err := mgoCloudClient.Db.StorePackage(storage.Package{
 		AgencyID: &conf.Agency,
 		Year:     &conf.Year,
 		Month:    nil,
@@ -102,6 +128,7 @@ func createAggregatedPackage(year int, outDir, agency string, amis []storage.Age
 	}
 	return pkgName, nil
 }
+
 func downloadPackages(packages []extractionData, year int, agency string, outDir string) ([]string, error) {
 	var pkgs []string
 	for _, p := range packages {
@@ -126,7 +153,8 @@ func getBackupData(amis []storage.AgencyMonthlyInfo) ([]extractionData, error) {
 				extractionData{Year: ami.Year,
 					Month: ami.Month,
 					URL:   ami.Package.URL,
-					Hash:  ami.Package.Hash})
+					Hash:  ami.Package.Hash,
+					Size:  ami.Package.Size})
 		}
 	}
 	return pkgs, nil
@@ -150,21 +178,4 @@ func download(fp string, url string) error {
 		return err
 	}
 	return nil
-}
-
-func newClient(c config) (*storage.Client, error) {
-	if c.MongoMICol == "" || c.MongoAgCol == "" {
-		return nil, fmt.Errorf("error creating storage client: db collections must not be empty. MI:\"%s\", AG:\"%s\"", c.MongoMICol, c.MongoAgCol)
-	}
-	db, err := storage.NewDBClient(c.MongoURI, c.MongoDBName, c.MongoMICol, c.MongoAgCol, c.MongoPkgCol, c.MongoRevCol)
-	if err != nil {
-		return nil, fmt.Errorf("error creating DB client: %q", err)
-	}
-	db.Collection(c.MongoMICol)
-	bc := storage.NewCloudClient(c.SwiftUsername, c.SwiftAPIKey, c.SwiftAuthURL, c.SwiftDomain, c.SwiftContainer)
-	client, err := storage.NewClient(db, bc)
-	if err != nil {
-		return nil, fmt.Errorf("error creating storage.client: %q", err)
-	}
-	return client, nil
 }
