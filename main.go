@@ -29,6 +29,8 @@ type config struct {
 
 	AWSRegion string `envconfig:"AWS_REGION" required:"true"`
 	S3Bucket  string `envconfig:"S3_BUCKET" required:"true"`
+	AWSAccessKey string `envconfig:"AWS_ACCESS_KEY_ID" required:"true"`
+	AWSSecretKey string `envconfig:"AWS_SECRET_ACCESS_KEY" required:"true"`
 
 	SwiftUsername  string `envconfig:"SWIFT_USERNAME" required:"true"`
 	SwiftAPIKey    string `envconfig:"SWIFT_APIKEY" required:"true"`
