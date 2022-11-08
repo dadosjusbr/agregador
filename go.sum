@@ -16,8 +16,8 @@ github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWH
 github.com/dadosjusbr/coletores v0.0.0-20201216050911-0186b4dcc191/go.mod h1:/MYAexbepJrBZGhKACp2ZAbRSrexfvccln0ig/0ci6E=
 github.com/dadosjusbr/coletores v0.0.0-20210928113650-4c03e4fa3b74 h1:biTIncJC0XYYqAVEJHJRI5dTUgEp9K7AfTrUj9JzvNc=
 github.com/dadosjusbr/coletores v0.0.0-20210928113650-4c03e4fa3b74/go.mod h1:m9opDykSJIwaf+veICpleWMranaaWEbx5RNQhKZAgXU=
-github.com/dadosjusbr/datapackage v0.0.0-20220407133248-f032e7adfc33 h1:y5E5fZ4XHQ3Y6CsyjMtMftAFzCgRpT2sc2x3jwXilRE=
-github.com/dadosjusbr/datapackage v0.0.0-20220407133248-f032e7adfc33/go.mod h1:+WRg2FEFtE8A09VeJnbodm23EDOCuXsLontCAwejpqc=
+github.com/dadosjusbr/datapackage v0.0.0-20221101144952-610ed98d8bc2 h1:onC9fSYuDMjCWXBMfZKkuR016CUoF6JuE333ClXMk+o=
+github.com/dadosjusbr/datapackage v0.0.0-20221101144952-610ed98d8bc2/go.mod h1:TXaoORoBjqfP1HGcx/f8MJ92WtvUzYNP/C9o3wv3tfw=
 github.com/dadosjusbr/proto v0.0.0-20211004174721-e51d25d61af2/go.mod h1:a04KL3nn5wvlJTuoTYggaeokQi3njDyt9L7Ss9EQEJQ=
 github.com/dadosjusbr/proto v0.0.0-20220304160723-47e93e9d97b5 h1:T1vX+7BhXkkYRZnRdla0Z8Uu9Emww7x2jNbowmbtOwM=
 github.com/dadosjusbr/proto v0.0.0-20220304160723-47e93e9d97b5/go.mod h1:a04KL3nn5wvlJTuoTYggaeokQi3njDyt9L7Ss9EQEJQ=
@@ -32,8 +32,8 @@ github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1m
 github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad/go.mod h1:cXg6YxExXjJnVBQHBLXeUAgxn2UodCpnH306RInaBQk=
 github.com/envoyproxy/go-control-plane v0.10.2-0.20220325020618-49ff273808a1/go.mod h1:KJwIaB5Mv44NWtYuAOFCVOjcI94vtpEz2JU/D2v6IjE=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
-github.com/frictionlessdata/datapackage-go v1.0.2 h1:RpPtBEz30fMLccVwSrQRWMWtLhE1O2OIGvgz4/jMxOc=
-github.com/frictionlessdata/datapackage-go v1.0.2/go.mod h1:bqt5SzFjnpsZNw4kXO4CFIwH9vV5LhEdQikftJ0uJ5M=
+github.com/frictionlessdata/datapackage-go v1.0.4 h1:B2td8AuRBezuxCtbHStFL9+QoudJ4TC7Ycf4ooPyF8g=
+github.com/frictionlessdata/datapackage-go v1.0.4/go.mod h1:bqt5SzFjnpsZNw4kXO4CFIwH9vV5LhEdQikftJ0uJ5M=
 github.com/frictionlessdata/tableschema-go v1.1.4-0.20220401172006-6cc5f3b2411c h1:7S5F4VDf8vkLL3egYLWobmq1FbZb7ig33IbliL7Tr/M=
 github.com/frictionlessdata/tableschema-go v1.1.4-0.20220401172006-6cc5f3b2411c/go.mod h1:B+DhLlwjCf6p6FqVkqpdYyAIy7L8jHCaxa2wFaqpYdc=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
