@@ -3,15 +3,15 @@ module agregador
 go 1.18
 
 require (
-	github.com/dadosjusbr/datapackage v0.0.0-20221101144952-610ed98d8bc2
-	github.com/dadosjusbr/storage v0.0.0-20221107114313-ad073942c21c
+	github.com/dadosjusbr/datapackage v0.0.0-20221111184141-77a33346e496
+	github.com/dadosjusbr/storage v0.0.0-20221111185758-ffc02534141e
 	github.com/kelseyhightower/envconfig v1.4.0
 )
 
 require (
 	github.com/aws/aws-sdk-go v1.44.127 // indirect
 	github.com/dadosjusbr/coletores v0.0.0-20210928113650-4c03e4fa3b74 // indirect
-	github.com/dadosjusbr/proto v0.0.0-20220304160723-47e93e9d97b5 // indirect
+	github.com/dadosjusbr/proto v0.0.0-20221111143805-a41e9c57346c // indirect
 	github.com/frictionlessdata/datapackage-go v1.0.4 // indirect
 	github.com/frictionlessdata/tableschema-go v1.1.4-0.20220401172006-6cc5f3b2411c // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
