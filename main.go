@@ -10,6 +10,10 @@ import (
 
 	"github.com/dadosjusbr/datapackage"
 	"github.com/dadosjusbr/storage"
+	"github.com/dadosjusbr/storage/models"
+	"github.com/dadosjusbr/storage/repositories/database/mongo"
+	"github.com/dadosjusbr/storage/repositories/database/postgres"
+	"github.com/dadosjusbr/storage/repositories/fileStorage"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -21,8 +25,14 @@ type config struct {
 	MongoPkgCol string `envconfig:"MONGODB_PKGCOL" required:"true"`
 	MongoRevCol string `envconfig:"MONGODB_REVCOL" required:"true"`
 
-	AWSRegion string `envconfig:"AWS_REGION" required:"true"`
-	S3Bucket  string `envconfig:"S3_BUCKET" required:"true"`
+	PostgresUser     string `envconfig:"POSTGRES_USER" required:"true"`
+	PostgresPassword string `envconfig:"POSTGRES_PASSWORD" required:"true"`
+	PostgresDBName   string `envconfig:"POSTGRES_DBNAME" required:"true"`
+	PostgresHost     string `envconfig:"POSTGRES_HOST" required:"true"`
+	PostgresPort     string `envconfig:"POSTGRES_PORT" required:"true"`
+
+	AWSRegion    string `envconfig:"AWS_REGION" required:"true"`
+	S3Bucket     string `envconfig:"S3_BUCKET" required:"true"`
 	AWSAccessKey string `envconfig:"AWS_ACCESS_KEY_ID" required:"true"`
 	AWSSecretKey string `envconfig:"AWS_SECRET_ACCESS_KEY" required:"true"`
 
@@ -51,13 +61,18 @@ func main() {
 		log.Fatal(err)
 	}
 	// Criando o client do MongoDB
-	mongoDb, err := storage.NewDBClient(conf.MongoURI, conf.MongoDBName, conf.MongoMICol, conf.MongoAgCol, conf.MongoPkgCol, conf.MongoRevCol)
+	mongoDb, err := mongo.NewMongoDB(conf.MongoURI, conf.MongoDBName, conf.MongoMICol, conf.MongoAgCol, conf.MongoPkgCol, conf.MongoRevCol)
 	if err != nil {
 		log.Fatalf("error creating MongoDB client: %v", err.Error())
 	}
 	mongoDb.Collection(conf.MongoMICol)
+	//Criando o client do Postgres
+	postgresDb, err := postgres.NewPostgresDB(conf.PostgresUser, conf.PostgresPassword, conf.PostgresDBName, conf.PostgresHost, conf.PostgresPort)
+	if err != nil {
+		log.Fatalf("error creating Postgres client: %v", err.Error())
+	}
 	// Criando o client do S3
-	s3Client, err := storage.NewS3Client(conf.AWSRegion, conf.S3Bucket)
+	s3Client, err := fileStorage.NewS3Client(conf.AWSRegion, conf.S3Bucket)
 	if err != nil {
 		log.Fatalf("error creating S3 client: %v", err.Error())
 	}
@@ -67,11 +82,18 @@ func main() {
 		log.Fatalf("error setting up mongo storage client: %s", err)
 	}
 	defer mgoCloudClient.Db.Disconnect()
+	// Criando o client do storage a partir do banco postgres e do client do s3
+	pgS3Client, err := storage.NewClient(postgresDb, s3Client)
+	if err != nil {
+		log.Fatalf("error setting up postgres storage client: %s", err)
+	}
+	defer pgS3Client.Db.Disconnect()
 
-	amiMap, err := mgoCloudClient.Db.GetMonthlyInfo([]storage.Agency{{ID: conf.Agency}}, conf.Year)
+	amiMap, err := pgS3Client.Db.GetMonthlyInfo([]models.Agency{{ID: conf.Agency}}, conf.Year)
 	if err != nil {
 		log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
 	}
+
 	amis, ok := amiMap[conf.Agency]
 	if !ok {
 		log.Fatalf("error while agreggating by agency/year -- there is no ami for %s", conf.Agency)
@@ -83,12 +105,12 @@ func main() {
 
 	pkgS3Key := fmt.Sprintf("%s/datapackage/%s", conf.Agency, filepath.Base(pkgPath))
 
-	packBackup, err := mgoCloudClient.Cloud.UploadFile(pkgPath, pkgS3Key)
+	packBackup, err := pgS3Client.Cloud.UploadFile(pkgPath, pkgS3Key)
 	if err != nil {
 		log.Fatalf("Error while uploading package: %q", err)
 	}
 
-	if err := mgoCloudClient.Db.StorePackage(storage.Package{
+	if err := mgoCloudClient.Db.StorePackage(models.Package{
 		AgencyID: &conf.Agency,
 		Year:     &conf.Year,
 		Month:    nil,
@@ -98,7 +120,7 @@ func main() {
 	}
 }
 
-func createAggregatedPackage(year int, outDir, agency string, amis []storage.AgencyMonthlyInfo) (string, error) {
+func createAggregatedPackage(year int, outDir, agency string, amis []models.AgencyMonthlyInfo) (string, error) {
 	packages, err := getBackupData(amis)
 	if err != nil {
 		return "", fmt.Errorf("error getting backup data (%s, %d):%w", agency, year, err)
@@ -141,7 +163,7 @@ func downloadPackages(packages []extractionData, year int, agency string, outDir
 	return pkgs, nil
 }
 
-func getBackupData(amis []storage.AgencyMonthlyInfo) ([]extractionData, error) {
+func getBackupData(amis []models.AgencyMonthlyInfo) ([]extractionData, error) {
 	var pkgs []extractionData
 	for _, ami := range amis {
 		if ami.Package != nil {
