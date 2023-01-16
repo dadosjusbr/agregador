@@ -11,20 +11,12 @@ import (
 	"github.com/dadosjusbr/datapackage"
 	"github.com/dadosjusbr/storage"
 	"github.com/dadosjusbr/storage/models"
-	"github.com/dadosjusbr/storage/repositories/database/mongo"
 	"github.com/dadosjusbr/storage/repositories/database/postgres"
 	"github.com/dadosjusbr/storage/repositories/fileStorage"
 	"github.com/kelseyhightower/envconfig"
 )
 
 type config struct {
-	MongoURI    string `envconfig:"MONGODB_URI" required:"true"`
-	MongoDBName string `envconfig:"MONGODB_DBNAME" required:"true"`
-	MongoMICol  string `envconfig:"MONGODB_MICOL" required:"true"`
-	MongoAgCol  string `envconfig:"MONGODB_AGCOL" required:"true"`
-	MongoPkgCol string `envconfig:"MONGODB_PKGCOL" required:"true"`
-	MongoRevCol string `envconfig:"MONGODB_REVCOL" required:"true"`
-
 	PostgresUser     string `envconfig:"POSTGRES_USER" required:"true"`
 	PostgresPassword string `envconfig:"POSTGRES_PASSWORD" required:"true"`
 	PostgresDBName   string `envconfig:"POSTGRES_DBNAME" required:"true"`
@@ -35,12 +27,6 @@ type config struct {
 	S3Bucket     string `envconfig:"S3_BUCKET" required:"true"`
 	AWSAccessKey string `envconfig:"AWS_ACCESS_KEY_ID" required:"true"`
 	AWSSecretKey string `envconfig:"AWS_SECRET_ACCESS_KEY" required:"true"`
-
-	SwiftUsername  string `envconfig:"SWIFT_USERNAME" required:"true"`
-	SwiftAPIKey    string `envconfig:"SWIFT_APIKEY" required:"true"`
-	SwiftAuthURL   string `envconfig:"SWIFT_AUTHURL" required:"true"`
-	SwiftDomain    string `envconfig:"SWIFT_DOMAIN" required:"true"`
-	SwiftContainer string `envconfig:"SWIFT_CONTAINER" required:"true"`
 
 	Agency       string `envconfig:"AID" required:"true"`
 	Year         int    `envconfig:"YEAR" required:"true"`
@@ -60,12 +46,6 @@ func main() {
 	if err := envconfig.Process("", &conf); err != nil {
 		log.Fatal(err)
 	}
-	// Criando o client do MongoDB
-	mongoDb, err := mongo.NewMongoDB(conf.MongoURI, conf.MongoDBName, conf.MongoMICol, conf.MongoAgCol, conf.MongoPkgCol, conf.MongoRevCol)
-	if err != nil {
-		log.Fatalf("error creating MongoDB client: %v", err.Error())
-	}
-	mongoDb.Collection(conf.MongoMICol)
 	//Criando o client do Postgres
 	postgresDb, err := postgres.NewPostgresDB(conf.PostgresUser, conf.PostgresPassword, conf.PostgresDBName, conf.PostgresHost, conf.PostgresPort)
 	if err != nil {
@@ -76,12 +56,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating S3 client: %v", err.Error())
 	}
-	// Criando o client do storage a partir do banco mongodb e do client do s3
-	mgoCloudClient, err := storage.NewClient(mongoDb, s3Client)
-	if err != nil {
-		log.Fatalf("error setting up mongo storage client: %s", err)
-	}
-	defer mgoCloudClient.Db.Disconnect()
 	// Criando o client do storage a partir do banco postgres e do client do s3
 	pgS3Client, err := storage.NewClient(postgresDb, s3Client)
 	if err != nil {
@@ -105,18 +79,9 @@ func main() {
 
 	pkgS3Key := fmt.Sprintf("%s/datapackage/%s", conf.Agency, filepath.Base(pkgPath))
 
-	packBackup, err := pgS3Client.Cloud.UploadFile(pkgPath, pkgS3Key)
+	_, err = pgS3Client.Cloud.UploadFile(pkgPath, pkgS3Key)
 	if err != nil {
 		log.Fatalf("Error while uploading package: %q", err)
-	}
-
-	if err := mgoCloudClient.Db.StorePackage(models.Package{
-		AgencyID: &conf.Agency,
-		Year:     &conf.Year,
-		Month:    nil,
-		Group:    nil,
-		Package:  *packBackup}); err != nil {
-		log.Fatalf("Error while updating DB: %q", err)
 	}
 }
 
