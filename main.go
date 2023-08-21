@@ -82,25 +82,25 @@ func main() {
 
 	_, err = pgS3Client.Cloud.UploadFile(pkgPath, pkgS3Key)
 	if err != nil {
-		log.Fatalf("Error while uploading package: %q", err)
+		log.Fatalf("Error while uploading package/year: %q", err)
 	}
 
 	// Agregando os dados por órgão
 	annualSummaryMap, err := pgS3Client.GetAnnualSummary(conf.Agency)
 	if err != nil {
-		log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
+		log.Fatalf("error while getting annual summary -- error fetching data: %v", err)
 	}
 
 	pkgAgencyPath, err := createAggregatedPackageByAgency(conf.Agency, conf.OutputFolder, annualSummaryMap)
 	if err != nil {
-		log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
+		log.Fatalf("error while agreggating by agency -- error fetching data: %v", err)
 	}
 
 	pkgAgencyS3Key := fmt.Sprintf("%s/datapackage/%s", conf.Agency, filepath.Base(pkgAgencyPath))
 
 	_, err = pgS3Client.Cloud.UploadFile(pkgAgencyPath, pkgAgencyS3Key)
 	if err != nil {
-		log.Fatalf("Error while uploading package: %q", err)
+		log.Fatalf("Error while uploading package/agency: %q", err)
 	}
 }
 
