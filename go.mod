@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/dadosjusbr/datapackage v0.0.0-20230818123816-40ae9a2f981f
 	github.com/dadosjusbr/storage v0.0.0-20230809125538-ea549ae71daf
-	github.com/joho/godotenv v1.4.0
 	github.com/kelseyhightower/envconfig v1.4.0
 )
 
