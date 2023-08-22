@@ -11,8 +11,8 @@ import (
 	"github.com/dadosjusbr/datapackage"
 	"github.com/dadosjusbr/storage"
 	"github.com/dadosjusbr/storage/models"
-	"github.com/dadosjusbr/storage/repositories/database/postgres"
-	"github.com/dadosjusbr/storage/repositories/fileStorage"
+	"github.com/dadosjusbr/storage/repo/database"
+	"github.com/dadosjusbr/storage/repo/file_storage"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -47,12 +47,12 @@ func main() {
 		log.Fatal(err)
 	}
 	//Criando o client do Postgres
-	postgresDb, err := postgres.NewPostgresDB(conf.PostgresUser, conf.PostgresPassword, conf.PostgresDBName, conf.PostgresHost, conf.PostgresPort)
+	postgresDb, err := database.NewPostgresDB(conf.PostgresUser, conf.PostgresPassword, conf.PostgresDBName, conf.PostgresHost, conf.PostgresPort)
 	if err != nil {
 		log.Fatalf("error creating Postgres client: %v", err.Error())
 	}
 	// Criando o client do S3
-	s3Client, err := fileStorage.NewS3Client(conf.AWSRegion, conf.S3Bucket)
+	s3Client, err := file_storage.NewS3Client(conf.AWSRegion, conf.S3Bucket)
 	if err != nil {
 		log.Fatalf("error creating S3 client: %v", err.Error())
 	}
@@ -63,6 +63,7 @@ func main() {
 	}
 	defer pgS3Client.Db.Disconnect()
 
+	// Agregando os dados por ano
 	amiMap, err := pgS3Client.Db.GetMonthlyInfo([]models.Agency{{ID: conf.Agency}}, conf.Year)
 	if err != nil {
 		log.Fatalf("error while agreggating by agency/year -- error fetching data: %v", err)
@@ -81,7 +82,25 @@ func main() {
 
 	_, err = pgS3Client.Cloud.UploadFile(pkgPath, pkgS3Key)
 	if err != nil {
-		log.Fatalf("Error while uploading package: %q", err)
+		log.Fatalf("Error while uploading package/year: %q", err)
+	}
+
+	// Agregando os dados por órgão
+	annualSummaryMap, err := pgS3Client.GetAnnualSummary(conf.Agency)
+	if err != nil {
+		log.Fatalf("error while getting annual summary -- error fetching data: %v", err)
+	}
+
+	pkgAgencyPath, err := createAggregatedPackageByAgency(conf.Agency, conf.OutputFolder, annualSummaryMap)
+	if err != nil {
+		log.Fatalf("error while agreggating by agency -- error fetching data: %v", err)
+	}
+
+	pkgAgencyS3Key := fmt.Sprintf("%s/datapackage/%s", conf.Agency, filepath.Base(pkgAgencyPath))
+
+	_, err = pgS3Client.Cloud.UploadFile(pkgAgencyPath, pkgAgencyS3Key)
+	if err != nil {
+		log.Fatalf("Error while uploading package/agency: %q", err)
 	}
 }
 
@@ -94,20 +113,27 @@ func createAggregatedPackage(year int, outDir, agency string, amis []models.Agen
 	if err != nil {
 		return "", fmt.Errorf("error downloading datapackage (%s, %d):%w", agency, year, err)
 	}
-	var rc datapackage.ResultadoColeta_CSV
-	for _, pkg := range pkgs {
-		aux, err := datapackage.Load(pkg)
-		if err != nil {
-			return "", fmt.Errorf("error loading datapackage (%s):%w", pkg, err)
-		}
-		rc.Coleta = append(rc.Coleta, aux.Coleta...)
-		rc.Folha = append(rc.Folha, aux.Folha...)
-		rc.Metadados = append(rc.Metadados, aux.Metadados...)
-		rc.Remuneracoes = append(rc.Remuneracoes, aux.Remuneracoes...)
-	}
 	pkgName := filepath.Join(outDir, fmt.Sprintf("%s-%d.zip", agency, year))
-	if err := datapackage.Zip(pkgName, rc, true); err != nil {
-		return "", fmt.Errorf("error creating datapackage (%s):%w", pkgName, err)
+	if err := createRc(pkgs, pkgName, agency, outDir); err != nil {
+		return "", fmt.Errorf("error zipping agency data (%s): %w", pkgName, err)
+	}
+	return pkgName, nil
+}
+
+func createAggregatedPackageByAgency(agency string, outDir string, as []models.AnnualSummary) (string, error) {
+	var pkgs []string
+	for _, a := range as {
+		zPkg := filepath.Join(outDir, fmt.Sprintf("%s-%d.zip", agency, a.Year))
+		err := download(zPkg, a.Package.URL)
+		if err != nil {
+			return "", fmt.Errorf("error dowloading packages/year (%s): %w", zPkg, err)
+		}
+		pkgs = append(pkgs, zPkg)
+	}
+
+	pkgName := filepath.Join(outDir, fmt.Sprintf("%s.zip", agency))
+	if err := createRc(pkgs, pkgName, agency, outDir); err != nil {
+		return "", fmt.Errorf("error zipping agency data (%s): %w", pkgName, err)
 	}
 	return pkgName, nil
 }
@@ -159,6 +185,24 @@ func download(fp string, url string) error {
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func createRc(pkgs []string, zPkgName, agency, outDir string) error {
+	var rc datapackage.ResultadoColeta_CSV_V2
+	for _, pkg := range pkgs {
+		aux, err := datapackage.LoadV2(pkg)
+		if err != nil {
+			return fmt.Errorf("error loading datapackage (%s):%w", pkg, err)
+		}
+		rc.Coleta = append(rc.Coleta, aux.Coleta...)
+		rc.Folha = append(rc.Folha, aux.Folha...)
+		rc.Metadados = append(rc.Metadados, aux.Metadados...)
+		rc.Remuneracoes = append(rc.Remuneracoes, aux.Remuneracoes...)
+	}
+	if err := datapackage.ZipV2(zPkgName, rc, true); err != nil {
+		return fmt.Errorf("error creating datapackage (%s):%w", zPkgName, err)
 	}
 	return nil
 }
