@@ -3,7 +3,7 @@ module agregador
 go 1.18
 
 require (
-	github.com/dadosjusbr/datapackage v0.0.0-20230818123816-40ae9a2f981f
+	github.com/dadosjusbr/datapackage v0.0.0-20240320203926-5f369dadd3a5
 	github.com/dadosjusbr/storage v0.0.0-20230809125538-ea549ae71daf
 	github.com/kelseyhightower/envconfig v1.4.0
 )
@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.127 // indirect
 	github.com/dadosjusbr/proto v0.0.0-20221212025627-91c60aa3cd12 // indirect
 	github.com/frictionlessdata/datapackage-go v1.0.4 // indirect
-	github.com/frictionlessdata/tableschema-go v1.1.4-0.20220401172006-6cc5f3b2411c // indirect
+	github.com/frictionlessdata/tableschema-go v1.5.2 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055 // indirect
 	github.com/golang/mock v1.6.0 // indirect
